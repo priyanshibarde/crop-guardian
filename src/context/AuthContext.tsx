@@ -1,0 +1,10 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { authToken, getCurrentUser, login as loginRequest, logout as logoutRequest, register as registerRequest, type LoginInput, type RegisterInput } from '../api/client'
+import type { UserProfile } from '../types'
+
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
+type AuthContextValue = { status: AuthStatus; user: { id:string; email:string }|null; profile: UserProfile|null; login: (input:LoginInput)=>Promise<void>; register: (input:RegisterInput)=>Promise<void>; logout:()=>Promise<void>; refresh:()=>Promise<void> }
+const AuthContext=createContext<AuthContextValue>({status:'loading',user:null,profile:null,login:async()=>{},register:async()=>{},logout:async()=>{},refresh:async()=>{}})
+
+export function AuthProvider({children}:{children:ReactNode}){const [status,setStatus]=useState<AuthStatus>(authToken.get()?'loading':'unauthenticated');const [user,setUser]=useState<AuthContextValue['user']>(null);const [profile,setProfile]=useState<UserProfile|null>(null);const refresh=async()=>{try{const result=await getCurrentUser();setUser(result.user);setProfile(result.profile);setStatus('authenticated')}catch{authToken.clear();setUser(null);setProfile(null);setStatus('unauthenticated')}};useEffect(()=>{if(authToken.get())void refresh()},[]);const login=async(input:LoginInput)=>{const result=await loginRequest(input);authToken.set(result.token);await refresh()};const register=async(input:RegisterInput)=>{const result=await registerRequest(input);authToken.set(result.token);if(result.profile){setProfile(result.profile)}await refresh()};const logout=async()=>{try{if(authToken.get())await logoutRequest()}finally{authToken.clear();setUser(null);setProfile(null);setStatus('unauthenticated')}};const value=useMemo(()=>({status,user,profile,login,register,logout,refresh}),[status,user,profile]);return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>}
+export const useAuth=()=>useContext(AuthContext)

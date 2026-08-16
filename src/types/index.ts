@@ -4,4 +4,6 @@ export type Crop = { id:string; name:string; variety:string; stage:string; healt
 export type Hotspot = { id:string; district:string; state:string; disease:string; severity:Severity; reports:number; trend:number; position:[number,number] }
 export type Pet = { id:string; name:string; type:string; breed?:string }
 export type CropChoice = 'Rice'|'Wheat'|'Maize'|'Cotton'|'Sugarcane'|'Tomato'|'Potato'|'Onion'|'Soybean'|'Chickpea'|'Groundnut'|'Mustard'|'Chilli'|'Grapes'|'Mango'|'Banana'|'Other'
-export type UserProfile = { name:string; location:string; role:'farmer'|'home-grower'; language:string; selectedCrops:CropChoice[]; pets:Pet[]; onboardingCompleted:boolean }
+export type UserProfile = { name:string; fullName?:string; phone?:string|null; profileImageUrl?:string|null; location:string; role:'farmer'|'home-grower'; language:string; selectedCrops?:CropChoice[]; pets?:Pet[]; onboardingCompleted:boolean }
+export type CropCatalog = { id:string; name:string; scientificName:string|null; category:string|null; createdAt:string; updatedAt:string }
+export type UserCrop = { id:string; userId:string; cropId:string|null; name:string; customName:string|null; variety:string; stage:string; plantedAt:string|null; area:number|null; areaUnit:string|null; notes:string|null; health:number; nextTask:string; color:string; createdAt:string; updatedAt:string }
