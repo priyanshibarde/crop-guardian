@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from 'express'
+import multer from 'multer'
 
 export class AppError extends Error {
   readonly status: number
@@ -19,6 +20,11 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
   }
   if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.parse.failed') {
     response.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request body must contain valid JSON.' } })
+    return
+  }
+  if (error instanceof multer.MulterError) {
+    const message = error.code === 'LIMIT_FILE_SIZE' ? 'The uploaded image is too large.' : 'The uploaded image could not be processed.'
+    response.status(400).json({ error: { code: error.code, message } })
     return
   }
   console.error('[api] unhandled error', error)

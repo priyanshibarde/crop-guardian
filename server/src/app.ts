@@ -9,6 +9,8 @@ import { meRouter } from './routes/meRoutes.js'
 import { profileRouter } from './routes/profileRoutes.js'
 import { cropRouter } from './routes/cropRoutes.js'
 import { userCropRouter } from './routes/userCropRoutes.js'
+import { scanRouter } from './routes/scanRoutes.js'
+import { diagnosisRouter } from './routes/diagnosisRoutes.js'
 
 export const app = express()
 
@@ -22,6 +24,8 @@ app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/crops', cropRouter)
 app.use('/api/user-crops', userCropRouter)
+app.use('/api/scans', scanRouter)
+app.use('/api/diagnoses', diagnosisRouter)
 app.use('/api/me', meRouter)
 
 app.use((_request, response) => {

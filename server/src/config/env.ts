@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { join } from 'node:path'
 
 function positivePort(value: string | undefined, fallback: number): number {
   const parsed = Number(value)
@@ -14,6 +15,8 @@ export const env = {
     .filter(Boolean),
   databaseUrl: process.env.DATABASE_URL,
   sessionTtlDays: positivePort(process.env.SESSION_TTL_DAYS, 30),
+  uploadDirectory: process.env.UPLOAD_DIRECTORY || join(process.cwd(), 'uploads'),
+  maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES) > 0 ? Number(process.env.MAX_UPLOAD_BYTES) : 10 * 1024 * 1024,
 }
 
 export function requireDatabaseUrl(): string {

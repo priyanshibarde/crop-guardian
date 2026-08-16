@@ -1,5 +1,29 @@
 import type { CropCatalog, UserCrop, UserProfile } from '../types'
 
+export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type DiagnosisStatus = 'pending' | 'completed' | 'failed'
+export type BackendDiagnosis = {
+  id: string
+  scanId: string
+  status: DiagnosisStatus
+  predictedCrop: string | null
+  predictedDisease: string | null
+  scientificName: string | null
+  severity: string | null
+  confidence: number | null
+  modelName: string | null
+  modelVersion: string | null
+  symptoms: string[]
+  actions: string[]
+  prevention: string[]
+  errorMessage?: string
+  createdAt: string
+  updatedAt: string
+}
+export type BackendScan = { id: string; cropId: string | null; originalFilename: string; mimeType: string; fileSize: number; status: ScanStatus; createdAt: string; updatedAt: string }
+export type ScanResponse = { scan: BackendScan; diagnosis: BackendDiagnosis | null }
+export type CreateScanResponse = { scan: Pick<BackendScan, 'id' | 'status' | 'createdAt'>; diagnosis: Pick<BackendDiagnosis, 'id' | 'status'> }
+
 const defaultBaseUrl = 'http://localhost:4000/api'
 export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || defaultBaseUrl
 const tokenKey = 'cg-auth-token'
@@ -24,7 +48,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const token = authToken.get()
   let response: Response
   try {
-    response = await fetch(url, { ...requestInit, headers: { Accept: 'application/json', ...(requestInit.body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers } })
+    const isMultipart = typeof FormData !== 'undefined' && requestInit.body instanceof FormData
+    response = await fetch(url, { ...requestInit, headers: { Accept: 'application/json', ...(requestInit.body && !isMultipart ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers } })
   } catch { throw new ApiError(0, 'The Crop Guardian server is unavailable.') }
   const payload = await response.json().catch(() => undefined)
   if (!response.ok) throw new ApiError(response.status, payload?.error?.message ?? 'The API request failed.', payload?.error?.code)
@@ -50,3 +75,7 @@ export const getUserCrops = () => apiRequest<UserCrop[]>('/user-crops')
 export const createUserCrop = (input: UserCropInput) => apiRequest<UserCrop>('/user-crops', { method: 'POST', body: JSON.stringify(input) })
 export const updateUserCrop = (id: string, input: UserCropInput) => apiRequest<UserCrop>(`/user-crops/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) })
 export const deleteUserCrop = (id: string) => apiRequest<{ success: boolean }>(`/user-crops/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export const createScan = (file: File, cropId?: string) => { const form = new FormData(); form.append('image', file); if (cropId) form.append('cropId', cropId); return apiRequest<CreateScanResponse>('/scans', { method: 'POST', body: form }) }
+export const getScan = (id: string) => apiRequest<ScanResponse>(`/scans/${encodeURIComponent(id)}`)
+export const getDiagnosis = (id: string) => apiRequest<BackendDiagnosis>(`/diagnoses/${encodeURIComponent(id)}`)
+export const getDiagnoses = () => apiRequest<BackendDiagnosis[]>('/diagnoses')
