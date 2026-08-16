@@ -4,12 +4,15 @@ import { getCatalog } from '../repositories/cropRepository.js'
 import { getDiagnosisByScanForUser, getDiagnosisForUser, getScanForUser, listDiagnosesForUser } from '../repositories/scanRepository.js'
 import { createUploadedScan } from '../services/scanService.js'
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 function safeDiagnosis(diagnosis: Awaited<ReturnType<typeof getDiagnosisByScanForUser>>) {
   if (!diagnosis) return null
   return {
     id: diagnosis.id,
     scanId: diagnosis.scanId,
     status: diagnosis.status,
+    availability: diagnosis.status === 'pending' && diagnosis.errorMessage === 'INFERENCE_UNAVAILABLE' ? 'unavailable' : null,
     predictedCrop: diagnosis.status === 'completed' ? diagnosis.predictedCrop : null,
     predictedDisease: diagnosis.status === 'completed' ? diagnosis.predictedDisease : null,
     scientificName: diagnosis.status === 'completed' ? diagnosis.scientificName : null,
@@ -48,7 +51,9 @@ export async function getScan(request: Request, response: Response): Promise<voi
 }
 
 export async function getDiagnosis(request: Request, response: Response): Promise<void> {
-  const diagnosis = await getDiagnosisForUser(request.authUser!.id, request.params.id as string)
+  const id = request.params.id as string
+  if (!uuidPattern.test(id)) throw new AppError(404, 'DIAGNOSIS_NOT_FOUND', 'Diagnosis not found.')
+  const diagnosis = await getDiagnosisForUser(request.authUser!.id, id)
   if (!diagnosis) throw new AppError(404, 'DIAGNOSIS_NOT_FOUND', 'Diagnosis not found.')
   response.json(safeDiagnosis(diagnosis))
 }

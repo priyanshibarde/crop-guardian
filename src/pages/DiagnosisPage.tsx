@@ -1,10 +1,10 @@
 import { ArrowRight, CheckCircle2, ChevronLeft, CircleHelp, MapPinned, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getDiagnosis, type BackendDiagnosis } from '../api/client'
+import { ApiError, getDiagnosis, type BackendDiagnosis } from '../api/client'
 import { storage } from '../services/storageService'
 import type { Diagnosis } from '../types'
-import { PageHeader, Pill } from '../components/ui/UI'
+import { Card, PageHeader, Pill } from '../components/ui/UI'
 import { useLanguage } from '../i18n'
 
 function formattedAssessmentDate(date: string) {
@@ -17,14 +17,27 @@ function isBackendId(id: string | undefined) { return Boolean(id && /^[0-9a-f]{8
 
 function PendingDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
   const failed = diagnosis.status === 'failed'
+  const unavailable = diagnosis.availability === 'unavailable'
   return <>
-    <PageHeader eyebrow="Uploaded scan" title={failed ? 'Diagnosis unavailable' : 'Scan received'} />
+    <PageHeader eyebrow="Uploaded scan" title={failed ? 'Diagnosis unavailable' : unavailable ? 'AI diagnosis unavailable' : 'Scan received'} />
     <section className="rounded-[28px] bg-white p-6 sm:p-8">
       <div className="grid min-h-52 place-items-center rounded-3xl bg-mint/50 text-center">
-        <div><span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-white text-forest shadow-sm"><ShieldCheck size={30}/></span><h2 className="mt-4 text-xl font-black">{failed ? 'The diagnosis could not be completed.' : 'AI diagnosis is unavailable'}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-ink/60">{failed ? 'Your uploaded image is safe, but a diagnosis was not produced.' : 'Your image was uploaded successfully, but a live AI model is not connected yet. No disease prediction has been generated.'}</p><p className="mt-4 text-xs font-bold uppercase tracking-widest text-ink/40">Status: {diagnosis.status}</p></div>
+        <div><span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-white text-forest shadow-sm"><ShieldCheck size={30}/></span><h2 className="mt-4 text-xl font-black">{failed ? 'The diagnosis could not be completed.' : unavailable ? 'AI diagnosis is currently unavailable.' : 'Your image is waiting for AI analysis.'}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-ink/60">{failed ? 'We could not analyze this image.' : unavailable ? 'Your image was uploaded successfully, but the prediction model is not configured yet. No disease prediction has been generated.' : 'Your image is uploaded and waiting for AI analysis.'}</p><p className="mt-4 text-xs font-bold uppercase tracking-widest text-ink/40">Status: {diagnosis.status}</p></div>
       </div>
       <Link to="/scan" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white"><ChevronLeft size={17}/>Return to scanner</Link>
     </section>
+  </>
+}
+
+function CompletedDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
+  const confidence = diagnosis.confidence === null ? null : Math.round(diagnosis.confidence * 100)
+  return <>
+    <Link to="/scan" className="mb-5 inline-flex items-center gap-1 text-sm font-bold text-forest"><ChevronLeft size={17}/>New scan</Link>
+    <PageHeader eyebrow={`Model assessment · ${formattedAssessmentDate(diagnosis.createdAt)}`} title={`${diagnosis.predictedCrop ?? 'Crop'}: ${diagnosis.predictedDisease ?? 'Prediction'}`}/>
+    <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
+      <section className="rounded-[28px] bg-white p-6"><div className="rounded-3xl bg-mint/50 p-6"><p className="text-sm font-bold text-forest">Uploaded image diagnosis</p><h2 className="mt-3 text-2xl font-black">{diagnosis.predictedDisease}</h2>{diagnosis.scientificName && <p className="mt-1 text-sm italic text-ink/50">{diagnosis.scientificName}</p>}<p className="mt-5 text-sm text-ink/65">Model confidence: {confidence === null ? 'Not available' : `${confidence}%`}</p>{diagnosis.severity && <p className="mt-2 text-sm text-ink/65">Severity: {diagnosis.severity}</p>}<p className="mt-5 text-xs text-ink/45">This is a model output from a pretrained plant-disease classifier. Real-world performance may vary.</p></div></section>
+      <section className="space-y-5"><div className="rounded-[28px] bg-forest p-6 text-white"><h2 className="text-lg font-black">Model information</h2><p className="mt-3 text-sm text-emerald-50">{diagnosis.modelName ?? 'Plant disease model'}</p><p className="mt-1 text-sm text-emerald-50/75">Version: {diagnosis.modelVersion ?? 'Not specified'}</p></div>{diagnosis.symptoms.length > 0 && <section className="rounded-[28px] bg-white p-5"><h2 className="font-extrabold">What we noticed</h2><ul className="mt-4 space-y-2 text-sm text-ink/70">{diagnosis.symptoms.map((item) => <li key={item}>• {item}</li>)}</ul></section>}{diagnosis.actions.length > 0 && <section className="rounded-[28px] bg-sand p-5"><h2 className="font-extrabold">Available actions</h2><ul className="mt-3 space-y-2 text-sm text-ink/70">{diagnosis.actions.map((item) => <li key={item}>• {item}</li>)}</ul></section>}</section>
+    </div>
   </>
 }
 
@@ -48,21 +61,41 @@ export function DiagnosisPage() {
   const { id } = useParams()
   const [backendDiagnosis, setBackendDiagnosis] = useState<BackendDiagnosis | null>(null)
   const [backendError, setBackendError] = useState(false)
+  const [notFound, setNotFound] = useState(false)
   const [loading, setLoading] = useState(isBackendId(id))
 
   useEffect(() => {
     if (!isBackendId(id)) { setLoading(false); return }
     let active = true
-    const load = async () => { try { const result = await getDiagnosis(id!); if (active) { setBackendDiagnosis(result); setBackendError(false) } } catch { if (active) setBackendError(true) } finally { if (active) setLoading(false) } }
+    let timer: number | undefined
+    const load = async () => {
+      try {
+        const result = await getDiagnosis(id!)
+        if (active) {
+          setBackendDiagnosis(result)
+          setBackendError(false)
+          setNotFound(false)
+          if (result.status === 'pending' && result.availability !== 'unavailable') timer = window.setTimeout(() => void load(), 5000)
+        }
+      } catch (error) {
+        if (active) {
+          setNotFound(error instanceof ApiError && error.status === 404)
+          setBackendError(!(error instanceof ApiError && error.status === 404))
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
     void load()
-    const timer = window.setInterval(() => { if (backendDiagnosis?.status === 'pending') void load() }, 5000)
-    return () => { active = false; window.clearInterval(timer) }
-  }, [id, backendDiagnosis?.status])
+    return () => { active = false; if (timer !== undefined) window.clearTimeout(timer) }
+  }, [id])
 
   if (loading) return <p className="py-12 text-center text-sm text-ink/55">Loading scan status…</p>
   if (isBackendId(id)) {
+    if (backendDiagnosis?.status === 'completed') return <CompletedDiagnosis diagnosis={backendDiagnosis}/>
     if (backendDiagnosis) return <PendingDiagnosis diagnosis={backendDiagnosis}/>
-    return <PendingDiagnosis diagnosis={{ id: id!, scanId: '', status: 'failed', predictedCrop: null, predictedDisease: null, scientificName: null, severity: null, confidence: null, modelName: null, modelVersion: null, symptoms: [], actions: [], prevention: [], createdAt: '', updatedAt: '', errorMessage: backendError ? 'unavailable' : undefined }}/>
+    if (notFound) return <Card className="text-center"><p className="font-extrabold">Diagnosis not found</p><p className="mt-1 text-sm text-ink/55">This diagnosis does not exist or is not available for your account.</p><Link to="/diagnoses" className="mt-5 inline-flex rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">Back to history</Link></Card>
+    return <PendingDiagnosis diagnosis={{ id: id!, scanId: '', status: 'failed', availability: null, predictedCrop: null, predictedDisease: null, scientificName: null, severity: null, confidence: null, modelName: null, modelVersion: null, symptoms: [], actions: [], prevention: [], createdAt: '', updatedAt: '', errorMessage: backendError ? 'unavailable' : undefined }}/>
   }
   const demo = storage.diagnoses().find((item) => item.id === id) || storage.diagnoses()[0]
   return <DemoDiagnosis d={demo}/>

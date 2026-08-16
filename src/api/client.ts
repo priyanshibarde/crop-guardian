@@ -2,10 +2,12 @@ import type { CropCatalog, UserCrop, UserProfile } from '../types'
 
 export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type DiagnosisStatus = 'pending' | 'completed' | 'failed'
+export type DiagnosisAvailability = 'unavailable' | null
 export type BackendDiagnosis = {
   id: string
   scanId: string
   status: DiagnosisStatus
+  availability: DiagnosisAvailability
   predictedCrop: string | null
   predictedDisease: string | null
   scientificName: string | null

@@ -1,6 +1,6 @@
 import { basename } from 'node:path'
 import { AppError } from '../middleware/errorHandler.js'
-import { completeScanDiagnosis, createScanWithDiagnosis, failScanDiagnosis } from '../repositories/scanRepository.js'
+import { completeScanDiagnosis, createScanWithDiagnosis, failScanDiagnosis, markDiagnosisUnavailable } from '../repositories/scanRepository.js'
 import { imageStorage } from './imageStorageService.js'
 import { infer } from './inferenceService.js'
 import type { Diagnosis, Scan } from '../types/diagnosis.js'
@@ -11,14 +11,20 @@ export async function createUploadedScan(userId: string, file: Express.Multer.Fi
   if (!acceptedMimeTypes.has(file.mimetype)) throw new AppError(400, 'UNSUPPORTED_IMAGE_TYPE', 'Only JPEG, PNG, and WebP images are supported.')
   if (!file.size) throw new AppError(400, 'EMPTY_IMAGE', 'The uploaded image is empty.')
   const storageKey = await imageStorage.storeImage(file.buffer, file.mimetype)
-  const result = await createScanWithDiagnosis({
-    userId,
-    cropId,
-    originalFilename: basename(file.originalname).slice(0, 255) || 'uploaded-image',
-    mimeType: file.mimetype,
-    fileSize: file.size,
-    storageKey,
-  })
+  let result: Awaited<ReturnType<typeof createScanWithDiagnosis>>
+  try {
+    result = await createScanWithDiagnosis({
+      userId,
+      cropId,
+      originalFilename: basename(file.originalname).slice(0, 255) || 'uploaded-image',
+      mimeType: file.mimetype,
+      fileSize: file.size,
+      storageKey,
+    })
+  } catch (error) {
+    await imageStorage.removeImage(storageKey)
+    throw error
+  }
   const inference = await infer({ imageKey: storageKey, mimeType: file.mimetype })
   if (inference.status === 'completed' && inference.prediction) {
     const completed = await completeScanDiagnosis(userId, result.scan.id, result.diagnosis.id, { prediction: inference.prediction, model: inference.model })
@@ -28,5 +34,6 @@ export async function createUploadedScan(userId: string, file: Express.Multer.Fi
     const failed = await failScanDiagnosis(userId, result.scan.id, result.diagnosis.id)
     return { scan: { ...result.scan, status: failed.scanStatus }, diagnosis: { ...result.diagnosis, status: failed.diagnosisStatus } }
   }
+  if (inference.status === 'unavailable') await markDiagnosisUnavailable(userId, result.diagnosis.id)
   return result
 }

@@ -50,3 +50,7 @@ export async function failScanDiagnosis(userId: string, scanId: string, diagnosi
   await pool.query(`UPDATE diagnoses SET status = 'failed', error_message = 'The image could not be analyzed.' WHERE id = $1 AND user_id = $2`, [diagnosisId, userId])
   return { scanStatus: 'failed', diagnosisStatus: 'failed' }
 }
+
+export async function markDiagnosisUnavailable(userId: string, diagnosisId: string): Promise<void> {
+  await pool.query(`UPDATE diagnoses SET error_message = 'INFERENCE_UNAVAILABLE' WHERE id = $1 AND user_id = $2 AND status = 'pending'`, [diagnosisId, userId])
+}
