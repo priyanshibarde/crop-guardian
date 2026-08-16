@@ -7,7 +7,7 @@ import { loginSchema, parseBody, registerSchema } from '../validation/schemas.js
 export async function registerController(request: Request, response: Response): Promise<void> {
   const input = parseBody(registerSchema, request.body)
   const result = await register(input)
-  response.status(201).json({ token: result.token, user: result.user, profile: { ...result.profile, onboardingCompleted: result.profile.onboarding_completed, languageCode: result.profile.language_code } })
+  response.status(201).json({ token: result.token, user: result.user, profile: { ...result.profile, name: result.profile.full_name, languageCode: result.profile.language } })
 }
 
 export async function loginController(request: Request, response: Response): Promise<void> {
@@ -16,8 +16,8 @@ export async function loginController(request: Request, response: Response): Pro
 }
 
 export async function logoutController(request: Request, response: Response): Promise<void> {
-  if (!request.authTokenHash) throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'A valid bearer token is required.')
-  await revokeToken(request.authTokenHash)
+  if (!request.authToken) throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'A valid bearer token is required.')
+  await revokeToken(request.authToken)
   response.json({ success: true })
 }
 

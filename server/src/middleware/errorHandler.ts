@@ -17,6 +17,10 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
     response.status(error.status).json({ error: { code: error.code, message: error.message } })
     return
   }
+  if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.parse.failed') {
+    response.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request body must contain valid JSON.' } })
+    return
+  }
   console.error('[api] unhandled error', error)
   response.status(500).json({
     error: {

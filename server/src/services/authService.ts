@@ -7,7 +7,7 @@ import { createSession, createUser, deleteSession, findUserByEmail, findUserBySe
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
-export async function register(input: { email:string; password:string; name:string; location:string; role:'farmer'|'home-grower'; languageCode:string }) {
+export async function register(input: { email:string; password:string; fullName:string; location:string; phone?:string; role:'farmer'|'home-grower'; languageCode:string }) {
   const passwordHash = await bcrypt.hash(input.password, 12)
   try {
     const result = await createUser({ ...input, email: normalizeEmail(input.email), passwordHash })

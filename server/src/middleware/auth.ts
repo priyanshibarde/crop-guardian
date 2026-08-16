@@ -10,7 +10,7 @@ export async function requireAuth(request: Request, _response: Response, next: N
     const user = await authenticateToken(token)
     if (!user) throw new AppError(401, 'INVALID_SESSION', 'The session is missing, expired, or invalid.')
     request.authUser = user
-    request.authTokenHash = token
+    request.authToken = token
     next()
   } catch (error) { next(error) }
 }

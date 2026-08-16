@@ -25,7 +25,7 @@ copy .env.example .env
 Set `DATABASE_URL` in `.env`, for example:
 
 ```text
-DATABASE_URL=postgresql://crop_guardian_app:use-a-local-secret@localhost:5432/crop_guardian
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/crop_guardian
 ```
 
 Also review:
@@ -63,10 +63,19 @@ Bearer-authenticated:
 
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
-- `GET/PATCH /api/me/profile`
-- `GET/POST /api/me/crops`
-- `PATCH/DELETE /api/me/crops/:id`
+- `GET /api/profile`
+- `PUT /api/profile`
+- `GET /api/user-crops`
+- `POST /api/user-crops`
+- `PUT/DELETE /api/user-crops/:id`
+- `GET /api/me/profile` and `PATCH /api/me/profile` (compatibility)
+- `GET/POST /api/me/crops` and `PATCH/DELETE /api/me/crops/:id` (compatibility)
 - `GET/POST /api/me/pets`
 - `PATCH/DELETE /api/me/pets/:id`
+
+Public catalog:
+
+- `GET /api/crops`
+- `GET /api/crops/:id`
 
 The frontend still uses localStorage and demo diagnosis data. These APIs are not connected to existing pages yet.

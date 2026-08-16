@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg'
 import { pool } from '../db/pool.js'
 
 export type UserRow = { id: string; email: string; password_hash: string }
-export type ProfileRow = { name: string; location: string; role: 'farmer' | 'home-grower'; onboarding_completed: boolean; language_code: string }
+export type ProfileRow = { full_name: string; name?: string; location: string; phone: string | null; profile_image_url: string | null; role: 'farmer' | 'home-grower'; onboarding_completed: boolean; language: string }
 
 export async function findUserByEmail(email: string): Promise<UserRow | undefined> {
   const result = await pool.query<UserRow>('SELECT id, email, password_hash FROM users WHERE LOWER(email) = LOWER($1)', [email])
@@ -14,16 +14,16 @@ export async function findUserById(id: string): Promise<Pick<UserRow, 'id' | 'em
   return result.rows[0]
 }
 
-export async function createUser(input: { email: string; passwordHash: string; name: string; location: string; role: string; languageCode: string }): Promise<{ user: Pick<UserRow, 'id' | 'email'>; profile: ProfileRow }> {
+export async function createUser(input: { email: string; passwordHash: string; fullName: string; location: string; phone?: string; role: string; languageCode: string }): Promise<{ user: Pick<UserRow, 'id' | 'email'>; profile: ProfileRow }> {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
     const userResult = await client.query<Pick<UserRow, 'id' | 'email'>>('INSERT INTO users (email, password_hash) VALUES (LOWER($1), $2) RETURNING id, email', [input.email, input.passwordHash])
     const user = userResult.rows[0]
-    const profileResult = await client.query<ProfileRow>(`INSERT INTO user_profiles (user_id, name, location, role) VALUES ($1, $2, $3, $4) RETURNING name, location, role, onboarding_completed`, [user.id, input.name, input.location, input.role])
+    const profileResult = await client.query<ProfileRow>(`INSERT INTO user_profiles (user_id, full_name, location, phone, language, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING full_name, location, phone, profile_image_url, language, role, onboarding_completed`, [user.id, input.fullName, input.location, input.phone ?? null, input.languageCode, input.role])
     await client.query('INSERT INTO user_preferences (user_id, language_code) VALUES ($1, $2)', [user.id, input.languageCode])
     await client.query('COMMIT')
-    return { user, profile: { ...profileResult.rows[0], language_code: input.languageCode } }
+    return { user, profile: profileResult.rows[0] }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
