@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #163128; background:#f5f7f3; }
+* { box-sizing: border-box; } body { margin:0; min-width:320px; background:#f5f7f3; } button, input, select { font: inherit; } button { cursor:pointer; } .leaflet-container{ font-family:inherit; z-index:0; }
+@theme { --color-forest:#176b4d; --color-mint:#dff5e9; --color-ink:#163128; --color-sand:#f7f2e9; --color-coral:#ed725c; --color-sun:#f1be45; }
