@@ -22,23 +22,37 @@ export const languages = [
 
 export type LanguageCode = typeof languages[number][0]
 export type SupportedLanguageCode = 'en' | 'hi' | 'mr' | 'bn' | 'gu' | 'ta' | 'te' | 'pa'
-const translations: Partial<Record<LanguageCode, Translation>> = { en, hi, mr, bn, gu, ta, te, pa }
+
+export function getTimeGreetingKey(overrideHour?: number): 'goodMorning' | 'goodAfternoon' | 'goodEvening' | 'goodNight' {
+  const hour = typeof overrideHour === 'number' ? overrideHour : new Date().getHours()
+  if (hour >= 5 && hour < 12) return 'goodMorning'
+  if (hour >= 12 && hour < 17) return 'goodAfternoon'
+  if (hour >= 17 && hour < 21) return 'goodEvening'
+  return 'goodNight'
+}
+
+export function getGreeting(t: Translation): string {
+  const key = getTimeGreetingKey()
+  return t[key] || t.greeting || 'Good morning'
+}
+
+const translations: Record<SupportedLanguageCode, Translation> = { en, hi, mr, bn, gu, ta, te, pa }
 export const translatedLanguages = new Set<SupportedLanguageCode>(['en', 'hi', 'mr', 'bn', 'gu', 'ta', 'te', 'pa'])
 export const isTranslatedLanguage = (code: LanguageCode): code is SupportedLanguageCode => translatedLanguages.has(code as SupportedLanguageCode)
-const statusTranslations: Partial<Record<SupportedLanguageCode, Translation>> = {
-  hi: { map:'मानचित्र', analysisPending:'विश्लेषण लंबित', aiUnavailable:'AI निदान उपलब्ध नहीं है', analysisFailed:'विश्लेषण विफल', diagnosisComplete:'निदान पूरा हुआ' },
-  mr: { map:'नकाशा', analysisPending:'विश्लेषण प्रलंबित', aiUnavailable:'AI निदान उपलब्ध नाही', analysisFailed:'विश्लेषण अयशस्वी', diagnosisComplete:'निदान पूर्ण' },
-  bn: { map:'মানচিত্র', analysisPending:'বিশ্লেষণ অপেক্ষমাণ', aiUnavailable:'AI নির্ণয় উপলব্ধ নয়', analysisFailed:'বিশ্লেষণ ব্যর্থ', diagnosisComplete:'নির্ণয় সম্পূর্ণ' },
-  gu: { map:'નકશો', analysisPending:'વિશ્લેષણ બાકી છે', aiUnavailable:'AI નિદાન ઉપલબ્ધ નથી', analysisFailed:'વિશ્લેષણ નિષ્ફળ', diagnosisComplete:'નિદાન પૂર્ણ' },
-  ta: { map:'வரைபடம்', analysisPending:'ஆய்வு நிலுவையில் உள்ளது', aiUnavailable:'AI நோயறிதல் கிடைக்கவில்லை', analysisFailed:'ஆய்வு தோல்வியடைந்தது', diagnosisComplete:'நோயறிதல் முடிந்தது' },
-  te: { map:'మ్యాప్', analysisPending:'విశ్లేషణ పెండింగ్‌లో ఉంది', aiUnavailable:'AI నిర్ధారణ అందుబాటులో లేదు', analysisFailed:'విశ్లేషణ విఫలమైంది', diagnosisComplete:'నిర్ధారణ పూర్తయింది' },
-  pa: { map:'ਨਕਸ਼ਾ', analysisPending:'ਵਿਸ਼ਲੇਸ਼ਣ ਬਕਾਇਆ ਹੈ', aiUnavailable:'AI ਨਿਦਾਨ ਉਪਲਬਧ ਨਹੀਂ', analysisFailed:'ਵਿਸ਼ਲੇਸ਼ਣ ਅਸਫਲ', diagnosisComplete:'ਨਿਦਾਨ ਪੂਰਾ' },
+
+export const translate = (code: LanguageCode): Translation => {
+  const langKey = isTranslatedLanguage(code) ? code : 'en'
+  const base = translations[langKey] ?? en
+  const merged: Translation = { ...en, ...base }
+  merged.greeting = getGreeting(merged)
+  return merged
 }
-const translate = (code: LanguageCode): Translation => ({ ...en, ...(translations[code] ?? {}), ...(statusTranslations[isTranslatedLanguage(code) ? code : 'en'] ?? {}) })
+
 export { translateCropName }
 
 type Context = { lang: LanguageCode; setLang: (lang: LanguageCode) => void; t: Translation; isFallback: boolean }
-const context = createContext<Context>({ lang: 'en', setLang: () => {}, t: en, isFallback: false })
+const context = createContext<Context>({ lang: 'en', setLang: () => {}, t: translate('en'), isFallback: false })
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const saved = storage.language() as LanguageCode
   const initial = languages.some(([id]) => id === saved) ? saved : 'en'
@@ -46,4 +60,5 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLang = (next: LanguageCode) => { setLangState(next); storage.saveLanguage(next) }
   return <context.Provider value={{ lang, setLang, t: translate(lang), isFallback: !isTranslatedLanguage(lang) }}>{children}</context.Provider>
 }
+
 export const useLanguage = () => useContext(context)

@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+# Ensure inference directory is always in sys.path regardless of execution CWD
+_INFERENCE_DIR = str(Path(__file__).resolve().parent)
+if _INFERENCE_DIR not in sys.path:
+    sys.path.insert(0, _INFERENCE_DIR)
 
 from model_service import model_service
 
