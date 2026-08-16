@@ -17,7 +17,7 @@ IMAGE_ROOT = Path(os.getenv("IMAGE_ROOT", str(Path(__file__).resolve().parent.pa
 
 
 def response(status: str, prediction: object = None, error: object = None) -> dict[str, object]:
-    result: dict[str, object] = {"status": status, "prediction": prediction, "model": {"name": "plant-disease-mobilenetv2", "version": os.getenv("MODEL_VERSION", "unverified")}}
+    result: dict[str, object] = {"status": status, "prediction": prediction, "model": model_service.metadata()["model"]}
     if error is not None:
         result["error"] = error
     return result
@@ -33,8 +33,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
-        if urlparse(self.path).path == "/health":
-            self._send(200, response("ok"))
+        path = urlparse(self.path).path
+        if path == "/health":
+            self._send(200, model_service.health())
+        elif path == "/model":
+            self._send(200, model_service.metadata())
         else:
             self._send(404, response("failed", error={"code": "NOT_FOUND", "message": "Route not found."}))
 
