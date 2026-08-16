@@ -9,6 +9,7 @@ const userCropSelect = `SELECT uc.id, uc.user_id AS "userId", uc.crop_id AS "cro
 export async function listCatalog(): Promise<CropCatalog[]> { return (await pool.query<CropCatalog>(`${catalogSelect} ORDER BY name ASC`)).rows }
 export async function getCatalog(id: string): Promise<CropCatalog | undefined> { return (await pool.query<CropCatalog>(`${catalogSelect} WHERE id = $1`, [id])).rows[0] }
 export async function listUserCrops(userId: string): Promise<UserCrop[]> { return (await pool.query<UserCrop>(`${userCropSelect} WHERE uc.user_id = $1 ORDER BY uc.created_at ASC`, [userId])).rows }
+export async function getUserCropForUser(userId: string, id: string): Promise<UserCrop | undefined> { return (await pool.query<UserCrop>(`${userCropSelect} WHERE uc.id = $1 AND uc.user_id = $2`, [id, userId])).rows[0] }
 
 export async function createUserCrop(userId: string, input: { cropId?: string; name?: string; customName?: string; plantedAt?: string; area?: number; areaUnit?: string; notes?: string; variety: string; stage: string; health: number; nextTask: string; color: string }): Promise<UserCrop | undefined> {
   if (input.cropId) {

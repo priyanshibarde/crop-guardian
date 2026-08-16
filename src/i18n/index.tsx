@@ -1,31 +1,49 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { storage } from '../services/storageService'
+import { en } from './translations/en'
+import { hi } from './translations/hi'
+import { mr } from './translations/mr'
+import { bn } from './translations/bn'
+import { gu } from './translations/gu'
+import { ta } from './translations/ta'
+import { te } from './translations/te'
+import { pa } from './translations/pa'
+import { translateCropName } from './cropNames'
+import type { Translation } from './translationTypes'
 
 export const languages = [
-  ['as','অসমীয়া','Assamese'],['bn','বাংলা','Bengali'],['brx','बड़ो','Bodo'],['doi','डोगरी','Dogri'],['gu','ગુજરાતી','Gujarati'],['hi','हिन्दी','Hindi'],['kn','ಕನ್ನಡ','Kannada'],['ks','कॉशुर','Kashmiri'],['kok','कोंकणी','Konkani'],['mai','मैथिली','Maithili'],['ml','മലയാളം','Malayalam'],['mni','মৈতৈলোন','Manipuri'],['mr','मराठी','Marathi'],['ne','नेपाली','Nepali'],['or','ଓଡ଼ିଆ','Odia'],['pa','ਪੰਜਾਬੀ','Punjabi'],['sa','संस्कृतम्','Sanskrit'],['sat','संताली','Santali'],['sd','سنڌي','Sindhi'],['ta','தமிழ்','Tamil'],['te','తెలుగు','Telugu'],['ur','اردو','Urdu'],['en','English','English'],
+  ['as', 'অসমীয়া', 'Assamese'], ['bn', 'বাংলা', 'Bengali'], ['brx', 'बड़ो', 'Bodo'], ['doi', 'डोगरी', 'Dogri'],
+  ['gu', 'ગુજરાતી', 'Gujarati'], ['hi', 'हिन्दी', 'Hindi'], ['kn', 'ಕನ್ನಡ', 'Kannada'], ['ks', 'کٲشُر', 'Kashmiri'],
+  ['kok', 'कोंकणी', 'Konkani'], ['mai', 'मैथिली', 'Maithili'], ['ml', 'മലയാളം', 'Malayalam'], ['mni', 'মৈতৈলোন', 'Manipuri'],
+  ['mr', 'मराठी', 'Marathi'], ['ne', 'नेपाली', 'Nepali'], ['or', 'ଓଡ଼ିଆ', 'Odia'], ['pa', 'ਪੰਜਾਬੀ', 'Punjabi'],
+  ['sa', 'संस्कृतम्', 'Sanskrit'], ['sat', 'संताली', 'Santali'], ['sd', 'سنڌي', 'Sindhi'], ['ta', 'தமிழ்', 'Tamil'],
+  ['te', 'తెలుగు', 'Telugu'], ['ur', 'اردو', 'Urdu'], ['en', 'English', 'English'],
 ] as const
-export type LanguageCode = typeof languages[number][0]
-export type Translation = Record<string,string>
 
-const en:Translation = {
-  home:'Home',scan:'Scan',hotspots:'Map',crops:'Crops',alerts:'Alerts',calculator:'Calculator',profile:'Profile',navigation:'Navigation',
-  greeting:'Good morning',growingIn:'Growing in',scanCrop:'Scan a crop',diseaseIntelligence:'Disease intelligence',myCrops:'My crops',earlyWarning:'Early warning',
-  upload:'Upload leaf photo',analyze:'Analyze crop',actions:'Recommended actions',tracking:'Recovery tracking',warning:'Early warning',language:'Language',
-  welcome:'Grow with confidence.',welcomeText:'Crop Guardian helps you check crop health, identify possible diseases, receive early warnings, and track every crop.',getStarted:'Get started',
-  signIn:'Sign in',createAccount:'Create account',continue:'Continue',back:'Back',name:'Your name',location:'Your location',role:'I am a',farmer:'Farmer',homeGrower:'Home grower',
-  chooseLanguage:'Choose your language',searchLanguages:'Search languages',profileSetup:'Tell us about your growing space',chooseCrops:'What are you growing?',chooseCropsText:'Select one or more crops to personalize your dashboard.',pets:'Do you have pets?',noPets:'No pets',addPet:'Add pet',petName:'Pet name',petType:'Pet type',breed:'Breed (optional)',finish:'Finish setup',
-  resetOnboarding:'Restart onboarding',resetProfile:'Reset profile',saveChanges:'Save changes',selectAtLeastOne:'Select at least one crop',required:'Please complete this field',localOnly:'Frontend-only prototype. Your data stays on this device.',
+export type LanguageCode = typeof languages[number][0]
+export type SupportedLanguageCode = 'en' | 'hi' | 'mr' | 'bn' | 'gu' | 'ta' | 'te' | 'pa'
+const translations: Partial<Record<LanguageCode, Translation>> = { en, hi, mr, bn, gu, ta, te, pa }
+export const translatedLanguages = new Set<SupportedLanguageCode>(['en', 'hi', 'mr', 'bn', 'gu', 'ta', 'te', 'pa'])
+export const isTranslatedLanguage = (code: LanguageCode): code is SupportedLanguageCode => translatedLanguages.has(code as SupportedLanguageCode)
+const statusTranslations: Partial<Record<SupportedLanguageCode, Translation>> = {
+  hi: { map:'मानचित्र', analysisPending:'विश्लेषण लंबित', aiUnavailable:'AI निदान उपलब्ध नहीं है', analysisFailed:'विश्लेषण विफल', diagnosisComplete:'निदान पूरा हुआ' },
+  mr: { map:'नकाशा', analysisPending:'विश्लेषण प्रलंबित', aiUnavailable:'AI निदान उपलब्ध नाही', analysisFailed:'विश्लेषण अयशस्वी', diagnosisComplete:'निदान पूर्ण' },
+  bn: { map:'মানচিত্র', analysisPending:'বিশ্লেষণ অপেক্ষমাণ', aiUnavailable:'AI নির্ণয় উপলব্ধ নয়', analysisFailed:'বিশ্লেষণ ব্যর্থ', diagnosisComplete:'নির্ণয় সম্পূর্ণ' },
+  gu: { map:'નકશો', analysisPending:'વિશ્લેષણ બાકી છે', aiUnavailable:'AI નિદાન ઉપલબ્ધ નથી', analysisFailed:'વિશ્લેષણ નિષ્ફળ', diagnosisComplete:'નિદાન પૂર્ણ' },
+  ta: { map:'வரைபடம்', analysisPending:'ஆய்வு நிலுவையில் உள்ளது', aiUnavailable:'AI நோயறிதல் கிடைக்கவில்லை', analysisFailed:'ஆய்வு தோல்வியடைந்தது', diagnosisComplete:'நோயறிதல் முடிந்தது' },
+  te: { map:'మ్యాప్', analysisPending:'విశ్లేషణ పెండింగ్‌లో ఉంది', aiUnavailable:'AI నిర్ధారణ అందుబాటులో లేదు', analysisFailed:'విశ్లేషణ విఫలమైంది', diagnosisComplete:'నిర్ధారణ పూర్తయింది' },
+  pa: { map:'ਨਕਸ਼ਾ', analysisPending:'ਵਿਸ਼ਲੇਸ਼ਣ ਬਕਾਇਆ ਹੈ', aiUnavailable:'AI ਨਿਦਾਨ ਉਪਲਬਧ ਨਹੀਂ', analysisFailed:'ਵਿਸ਼ਲੇਸ਼ਣ ਅਸਫਲ', diagnosisComplete:'ਨਿਦਾਨ ਪੂਰਾ' },
 }
-type Core = Pick<Translation,'home'|'scan'|'hotspots'|'crops'|'alerts'|'calculator'|'profile'|'navigation'|'greeting'|'growingIn'|'scanCrop'|'diseaseIntelligence'|'myCrops'|'earlyWarning'|'language'|'welcome'|'getStarted'|'continue'|'back'|'name'|'location'|'chooseLanguage'|'searchLanguages'|'profileSetup'|'chooseCrops'|'pets'|'noPets'|'addPet'|'petName'|'petType'|'breed'|'finish'|'resetOnboarding'|'resetProfile'|'saveChanges'>
-const coreByLanguage:Partial<Record<LanguageCode,Partial<Core>>> = {
-  hi:{home:'होम',scan:'स्कैन',hotspots:'नक्शा',crops:'फसलें',alerts:'अलर्ट',calculator:'कैलकुलेटर',profile:'प्रोफ़ाइल',navigation:'नेविगेशन',greeting:'सुप्रभात',growingIn:'यहाँ खेती',scanCrop:'फसल स्कैन करें',diseaseIntelligence:'रोग जानकारी',myCrops:'मेरी फसलें',earlyWarning:'प्रारंभिक चेतावनी',language:'भाषा',welcome:'आत्मविश्वास से उगाएँ।',getStarted:'शुरू करें',continue:'जारी रखें',back:'वापस',name:'आपका नाम',location:'आपका स्थान',chooseLanguage:'अपनी भाषा चुनें',searchLanguages:'भाषाएँ खोजें',profileSetup:'अपने खेत के बारे में बताएँ',chooseCrops:'आप क्या उगा रहे हैं?',pets:'क्या आपके पास पालतू हैं?',noPets:'कोई पालतू नहीं',addPet:'पालतू जोड़ें',petName:'पालतू का नाम',petType:'पालतू का प्रकार',breed:'नस्ल (वैकल्पिक)',finish:'सेटअप पूरा करें',resetOnboarding:'ऑनबोर्डिंग फिर शुरू करें',resetProfile:'प्रोफ़ाइल रीसेट करें',saveChanges:'बदलाव सहेजें'},
-  mr:{home:'मुख्यपृष्ठ',scan:'स्कॅन',hotspots:'नकाशा',crops:'पिके',alerts:'सूचना',calculator:'कॅल्क्युलेटर',profile:'प्रोफाइल',navigation:'नेव्हिगेशन',greeting:'शुभ सकाळ',growingIn:'येथे शेती',scanCrop:'पीक स्कॅन करा',diseaseIntelligence:'रोग माहिती',myCrops:'माझी पिके',earlyWarning:'लवकर सूचना',language:'भाषा',welcome:'आत्मविश्वासाने वाढवा.',getStarted:'सुरू करा',continue:'पुढे जा',back:'मागे',name:'तुमचे नाव',location:'तुमचे ठिकाण',chooseLanguage:'तुमची भाषा निवडा',searchLanguages:'भाषा शोधा',profileSetup:'तुमच्या शेतीबद्दल सांगा',chooseCrops:'तुम्ही काय पिकवता?',pets:'तुमच्याकडे पाळीव प्राणी आहेत का?',noPets:'पाळीव प्राणी नाही',addPet:'पाळीव प्राणी जोडा',petName:'पाळीव प्राण्याचे नाव',petType:'प्रकार',breed:'जात (ऐच्छिक)',finish:'सेटअप पूर्ण करा',resetOnboarding:'ऑनबोर्डिंग पुन्हा सुरू करा',resetProfile:'प्रोफाइल रीसेट करा',saveChanges:'बदल जतन करा'},
-  bn:{home:'হোম',scan:'স্ক্যান',hotspots:'মানচিত্র',crops:'ফসল',alerts:'সতর্কতা',profile:'প্রোফাইল',greeting:'সুপ্রভাত',growingIn:'চাষের স্থান',chooseLanguage:'আপনার ভাষা বেছে নিন',searchLanguages:'ভাষা খুঁজুন',welcome:'আত্মবিশ্বাসের সঙ্গে চাষ করুন।',getStarted:'শুরু করুন',continue:'চালিয়ে যান',name:'আপনার নাম',location:'আপনার অবস্থান',chooseCrops:'আপনি কী চাষ করছেন?',pets:'আপনার কি পোষা প্রাণী আছে?',noPets:'কোনও পোষা প্রাণী নেই',finish:'সেটআপ শেষ করুন',resetOnboarding:'অনবোর্ডিং আবার শুরু করুন'},
-  ta:{home:'முகப்பு',scan:'ஸ்கேன்',hotspots:'வரைபடம்',crops:'பயிர்கள்',alerts:'எச்சரிக்கைகள்',profile:'சுயவிவரம்',greeting:'காலை வணக்கம்',growingIn:'விவசாய இடம்',chooseLanguage:'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்',searchLanguages:'மொழிகளைத் தேடுங்கள்',welcome:'நம்பிக்கையுடன் வளருங்கள்.',getStarted:'தொடங்குங்கள்',continue:'தொடரவும்',name:'உங்கள் பெயர்',location:'உங்கள் இடம்',chooseCrops:'நீங்கள் என்ன பயிரிடுகிறீர்கள்?',pets:'உங்களிடம் செல்லப்பிராணிகள் உள்ளனவா?',noPets:'செல்லப்பிராணிகள் இல்லை',finish:'அமைப்பை முடிக்கவும்',resetOnboarding:'அமைப்பை மீண்டும் தொடங்கவும்'},
-  te:{home:'హోమ్',scan:'స్కాన్',hotspots:'మ్యాప్',crops:'పంటలు',alerts:'హెచ్చరికలు',profile:'ప్రొఫైల్',greeting:'శుభోదయం',growingIn:'వ్యవసాయ స్థలం',chooseLanguage:'మీ భాషను ఎంచుకోండి',searchLanguages:'భాషలను వెతకండి',welcome:'నమ్మకంతో పండించండి.',getStarted:'ప్రారంభించండి',continue:'కొనసాగించండి',name:'మీ పేరు',location:'మీ ప్రాంతం',chooseCrops:'మీరు ఏమి పండిస్తున్నారు?',pets:'మీకు పెంపుడు జంతువులు ఉన్నాయా?',noPets:'పెంపుడు జంతువులు లేవు',finish:'సెటప్ పూర్తి చేయండి',resetOnboarding:'ఆన్‌బోర్డింగ్‌ను మళ్లీ ప్రారంభించండి'},
+const translate = (code: LanguageCode): Translation => ({ ...en, ...(translations[code] ?? {}), ...(statusTranslations[isTranslatedLanguage(code) ? code : 'en'] ?? {}) })
+export { translateCropName }
+
+type Context = { lang: LanguageCode; setLang: (lang: LanguageCode) => void; t: Translation; isFallback: boolean }
+const context = createContext<Context>({ lang: 'en', setLang: () => {}, t: en, isFallback: false })
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const saved = storage.language() as LanguageCode
+  const initial = languages.some(([id]) => id === saved) ? saved : 'en'
+  const [lang, setLangState] = useState<LanguageCode>(initial)
+  const setLang = (next: LanguageCode) => { setLangState(next); storage.saveLanguage(next) }
+  return <context.Provider value={{ lang, setLang, t: translate(lang), isFallback: !isTranslatedLanguage(lang) }}>{children}</context.Provider>
 }
-const translate=(lang:LanguageCode):Translation=>({...en,...(coreByLanguage[lang]??{})})
-type Context={lang:LanguageCode;setLang:(lang:LanguageCode)=>void;t:Translation}
-const C=createContext<Context>({lang:'en',setLang:()=>{},t:en})
-export function LanguageProvider({children}:{children:ReactNode}){const saved=storage.language() as LanguageCode;const initial=languages.some(([id])=>id===saved)?saved:'en';const [lang,setLangState]=useState<LanguageCode>(initial);const setLang=(next:LanguageCode)=>{setLangState(next);storage.saveLanguage(next)};return <C.Provider value={{lang,setLang,t:translate(lang)}}>{children}</C.Provider>}
-export const useLanguage=()=>useContext(C)
+export const useLanguage = () => useContext(context)

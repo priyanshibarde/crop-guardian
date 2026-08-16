@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { AppError } from '../middleware/errorHandler.js'
-import { getCatalog } from '../repositories/cropRepository.js'
+import { getCatalog, getUserCropForUser } from '../repositories/cropRepository.js'
 import { getDiagnosisByScanForUser, getDiagnosisForUser, getScanForUser, listDiagnosesForUser } from '../repositories/scanRepository.js'
 import { createUploadedScan } from '../services/scanService.js'
 
@@ -33,9 +33,12 @@ export async function createScan(request: Request, response: Response): Promise<
   if (!request.file) throw new AppError(400, 'IMAGE_REQUIRED', 'An image file is required.')
   const cropId = typeof request.body?.cropId === 'string' ? request.body.cropId : undefined
   if (cropId && !(await getCatalog(cropId))) throw new AppError(400, 'INVALID_CROP_ID', 'The selected crop does not exist.')
-  const result = await createUploadedScan(request.authUser!.id, request.file, cropId)
+  const userCropId = typeof request.body?.userCropId === 'string' ? request.body.userCropId : undefined
+  if (userCropId && !uuidPattern.test(userCropId)) throw new AppError(400, 'INVALID_USER_CROP_ID', 'The selected crop is invalid.')
+  if (userCropId && !(await getUserCropForUser(request.authUser!.id, userCropId))) throw new AppError(404, 'USER_CROP_NOT_FOUND', 'User crop not found.')
+  const result = await createUploadedScan(request.authUser!.id, request.file, cropId, userCropId)
   response.status(201).json({
-    scan: { id: result.scan.id, status: result.scan.status, createdAt: result.scan.createdAt },
+    scan: { id: result.scan.id, cropId: result.scan.cropId, userCropId: result.scan.userCropId, status: result.scan.status, createdAt: result.scan.createdAt },
     diagnosis: { id: result.diagnosis.id, status: result.diagnosis.status },
   })
 }
@@ -45,7 +48,7 @@ export async function getScan(request: Request, response: Response): Promise<voi
   if (!scan) throw new AppError(404, 'SCAN_NOT_FOUND', 'Scan not found.')
   const diagnosis = await getDiagnosisByScanForUser(request.authUser!.id, scan.id)
   response.json({
-    scan: { id: scan.id, cropId: scan.cropId, originalFilename: scan.originalFilename, mimeType: scan.mimeType, fileSize: scan.fileSize, status: scan.status, createdAt: scan.createdAt, updatedAt: scan.updatedAt },
+    scan: { id: scan.id, cropId: scan.cropId, userCropId: scan.userCropId, originalFilename: scan.originalFilename, mimeType: scan.mimeType, fileSize: scan.fileSize, status: scan.status, createdAt: scan.createdAt, updatedAt: scan.updatedAt },
     diagnosis: safeDiagnosis(diagnosis),
   })
 }

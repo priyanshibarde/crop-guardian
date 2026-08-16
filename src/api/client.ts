@@ -1,4 +1,4 @@
-import type { CropCatalog, UserCrop, UserProfile } from '../types'
+import type { CropCatalog, UserCrop, UserCropDetail, UserProfile, CropTimelineEvent, DiagnosisSummary, Pet } from '../types'
 
 export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type DiagnosisStatus = 'pending' | 'completed' | 'failed'
@@ -22,9 +22,9 @@ export type BackendDiagnosis = {
   createdAt: string
   updatedAt: string
 }
-export type BackendScan = { id: string; cropId: string | null; originalFilename: string; mimeType: string; fileSize: number; status: ScanStatus; createdAt: string; updatedAt: string }
+export type BackendScan = { id: string; cropId: string | null; userCropId: string | null; originalFilename: string; mimeType: string; fileSize: number; status: ScanStatus; createdAt: string; updatedAt: string }
 export type ScanResponse = { scan: BackendScan; diagnosis: BackendDiagnosis | null }
-export type CreateScanResponse = { scan: Pick<BackendScan, 'id' | 'status' | 'createdAt'>; diagnosis: Pick<BackendDiagnosis, 'id' | 'status'> }
+export type CreateScanResponse = { scan: Pick<BackendScan, 'id' | 'cropId' | 'userCropId' | 'status' | 'createdAt'>; diagnosis: Pick<BackendDiagnosis, 'id' | 'status'> }
 
 const defaultBaseUrl = 'http://localhost:4000/api'
 export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || defaultBaseUrl
@@ -74,10 +74,15 @@ export const updateProfile = (input: ProfileUpdate) => apiRequest<UserProfile>('
 export const getCrops = () => apiRequest<CropCatalog[]>('/crops')
 export const getCrop = (id: string) => apiRequest<CropCatalog>(`/crops/${encodeURIComponent(id)}`)
 export const getUserCrops = () => apiRequest<UserCrop[]>('/user-crops')
+export const getPets = () => apiRequest<Pet[]>('/me/pets')
+export const createPet = (input: Pick<Pet, 'name' | 'type' | 'breed'>) => apiRequest<Pet>('/me/pets', { method: 'POST', body: JSON.stringify(input) })
 export const createUserCrop = (input: UserCropInput) => apiRequest<UserCrop>('/user-crops', { method: 'POST', body: JSON.stringify(input) })
 export const updateUserCrop = (id: string, input: UserCropInput) => apiRequest<UserCrop>(`/user-crops/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) })
 export const deleteUserCrop = (id: string) => apiRequest<{ success: boolean }>(`/user-crops/${encodeURIComponent(id)}`, { method: 'DELETE' })
-export const createScan = (file: File, cropId?: string) => { const form = new FormData(); form.append('image', file); if (cropId) form.append('cropId', cropId); return apiRequest<CreateScanResponse>('/scans', { method: 'POST', body: form }) }
+export const createScan = (file: File, cropId?: string, userCropId?: string) => { const form = new FormData(); form.append('image', file); if (cropId) form.append('cropId', cropId); if (userCropId) form.append('userCropId', userCropId); return apiRequest<CreateScanResponse>('/scans', { method: 'POST', body: form }) }
 export const getScan = (id: string) => apiRequest<ScanResponse>(`/scans/${encodeURIComponent(id)}`)
 export const getDiagnosis = (id: string) => apiRequest<BackendDiagnosis>(`/diagnoses/${encodeURIComponent(id)}`)
 export const getDiagnoses = () => apiRequest<BackendDiagnosis[]>('/diagnoses')
+export const getUserCropDetail = (id: string) => apiRequest<UserCropDetail>(`/user-crops/${encodeURIComponent(id)}`)
+export const getUserCropDiagnoses = (id: string) => apiRequest<DiagnosisSummary[]>(`/user-crops/${encodeURIComponent(id)}/diagnoses`)
+export const getUserCropTimeline = (id: string) => apiRequest<CropTimelineEvent[]>(`/user-crops/${encodeURIComponent(id)}/timeline`)

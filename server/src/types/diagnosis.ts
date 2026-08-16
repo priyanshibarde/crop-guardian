@@ -5,6 +5,7 @@ export type Scan = {
   id: string
   userId: string
   cropId: string | null
+  userCropId: string | null
   originalFilename: string
   mimeType: string
   fileSize: number

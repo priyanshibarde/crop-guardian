@@ -5,7 +5,7 @@ import { ApiError, getDiagnosis, type BackendDiagnosis } from '../api/client'
 import { storage } from '../services/storageService'
 import type { Diagnosis } from '../types'
 import { Card, PageHeader, Pill } from '../components/ui/UI'
-import { useLanguage } from '../i18n'
+import { translateCropName, useLanguage } from '../i18n'
 
 function formattedAssessmentDate(date: string) {
   if (['today', 'just now'].includes(date.trim().toLowerCase())) return 'TODAY'
@@ -30,13 +30,20 @@ function PendingDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
 }
 
 function CompletedDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
+  const { lang } = useLanguage()
   const confidence = diagnosis.confidence === null ? null : Math.round(diagnosis.confidence * 100)
+  const cropDisplay = diagnosis.predictedCrop ? translateCropName(diagnosis.predictedCrop, lang) : 'Crop'
   return <>
     <Link to="/scan" className="mb-5 inline-flex items-center gap-1 text-sm font-bold text-forest"><ChevronLeft size={17}/>New scan</Link>
-    <PageHeader eyebrow={`Model assessment · ${formattedAssessmentDate(diagnosis.createdAt)}`} title={`${diagnosis.predictedCrop ?? 'Crop'}: ${diagnosis.predictedDisease ?? 'Prediction'}`}/>
+    <PageHeader eyebrow={`Model assessment · ${formattedAssessmentDate(diagnosis.createdAt)}`} title={`${cropDisplay}: ${diagnosis.predictedDisease ?? 'Prediction'}`}/>
     <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
-      <section className="rounded-[28px] bg-white p-6"><div className="rounded-3xl bg-mint/50 p-6"><p className="text-sm font-bold text-forest">Uploaded image diagnosis</p><h2 className="mt-3 text-2xl font-black">{diagnosis.predictedDisease}</h2>{diagnosis.scientificName && <p className="mt-1 text-sm italic text-ink/50">{diagnosis.scientificName}</p>}<p className="mt-5 text-sm text-ink/65">Model confidence: {confidence === null ? 'Not available' : `${confidence}%`}</p>{diagnosis.severity && <p className="mt-2 text-sm text-ink/65">Severity: {diagnosis.severity}</p>}<p className="mt-5 text-xs text-ink/45">This is a model output from a pretrained plant-disease classifier. Real-world performance may vary.</p></div></section>
-      <section className="space-y-5"><div className="rounded-[28px] bg-forest p-6 text-white"><h2 className="text-lg font-black">Model information</h2><p className="mt-3 text-sm text-emerald-50">{diagnosis.modelName ?? 'Plant disease model'}</p><p className="mt-1 text-sm text-emerald-50/75">Version: {diagnosis.modelVersion ?? 'Not specified'}</p></div>{diagnosis.symptoms.length > 0 && <section className="rounded-[28px] bg-white p-5"><h2 className="font-extrabold">What we noticed</h2><ul className="mt-4 space-y-2 text-sm text-ink/70">{diagnosis.symptoms.map((item) => <li key={item}>• {item}</li>)}</ul></section>}{diagnosis.actions.length > 0 && <section className="rounded-[28px] bg-sand p-5"><h2 className="font-extrabold">Available actions</h2><ul className="mt-3 space-y-2 text-sm text-ink/70">{diagnosis.actions.map((item) => <li key={item}>• {item}</li>)}</ul></section>}</section>
+      <section className="rounded-[28px] bg-white p-6"><div className="rounded-3xl bg-mint/50 p-6"><p className="text-sm font-bold text-forest">Uploaded image diagnosis</p><h2 className="mt-3 text-2xl font-black">{diagnosis.predictedDisease}</h2>{diagnosis.scientificName && <p className="mt-1 text-sm italic text-ink/50">{diagnosis.scientificName}</p>}<p className="mt-5 text-sm text-ink/65">Model confidence: {confidence === null ? 'Not available' : `${confidence}%`}</p>{diagnosis.severity && <p className="mt-2 text-sm text-ink/65">Severity: <span className="font-bold">{diagnosis.severity}</span></p>}<p className="mt-5 text-xs text-ink/45">This is a model output from a pretrained plant-disease classifier. Real-world performance may vary.</p></div></section>
+      <section className="space-y-5">
+        <div className="rounded-[28px] bg-forest p-6 text-white"><h2 className="text-lg font-black">Model information</h2><p className="mt-3 text-sm text-emerald-50">{diagnosis.modelName ?? 'Plant disease model'}</p><p className="mt-1 text-sm text-emerald-50/75">Version: {diagnosis.modelVersion ?? 'Not specified'}</p></div>
+        {diagnosis.symptoms.length > 0 && <section className="rounded-[28px] bg-white p-5"><h2 className="font-extrabold">What we noticed</h2><ul className="mt-4 space-y-2 text-sm text-ink/70">{diagnosis.symptoms.map((item) => <li key={item}>• {item}</li>)}</ul></section>}
+        {diagnosis.actions.length > 0 && <section className="rounded-[28px] bg-sand p-5"><h2 className="font-extrabold">Available actions</h2><ul className="mt-3 space-y-2 text-sm text-ink/70">{diagnosis.actions.map((item) => <li key={item}>• {item}</li>)}</ul></section>}
+        {diagnosis.prevention.length > 0 && <section className="rounded-[28px] bg-white p-5"><h2 className="font-extrabold">Prevention</h2><ul className="mt-3 space-y-2 text-sm text-ink/70">{diagnosis.prevention.map((item) => <li key={item}>• {item}</li>)}</ul></section>}
+      </section>
     </div>
   </>
 }

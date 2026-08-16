@@ -1,6 +1,6 @@
 # Crop Guardian
 
-Crop Guardian currently contains the existing React frontend and a minimal Express API foundation. The backend is intentionally limited to infrastructure and a health check; authentication, persistence, uploads, diagnosis, and recommendations are not connected yet.
+Crop Guardian contains a React frontend, an Express API, PostgreSQL persistence, authenticated crop management, scan/diagnosis infrastructure, and a localhost-only inference boundary. The real model remains optional and unavailable until verified model assets are supplied.
 
 ## Local development
 
@@ -32,7 +32,7 @@ Before running the migration, configure PostgreSQL and set `DATABASE_URL` in `se
 DATABASE_URL=postgresql://crop_guardian_app:your-local-secret@localhost:5432/crop_guardian
 ```
 
-The migration creates the initial users, profiles, preferences, crops, pets, and authentication-session tables. Do not commit `.env` or real credentials.
+The ordered migrations create users, profiles, preferences, crops, pets, authentication sessions, scans, diagnoses, and the optional scan-to-user-crop link. Do not commit `.env` or real credentials.
 
 The Express API runs at `http://localhost:4000` by default. Verify the foundation with:
 
@@ -53,7 +53,15 @@ npm run build
 npm run start
 ```
 
-The frontend API abstraction is available at `src/api/client.ts`, but no existing page is connected to it yet. Existing localStorage and demo diagnosis behavior remain unchanged. See `server/README.md` for the full backend setup and endpoint list.
+The frontend API abstraction is available at `src/api/client.ts`. Crop dashboard/detail pages use authenticated user-crop and diagnosis-history APIs; demo diagnosis behavior remains local and separate from real uploaded scans.
+
+## Phase 7 crop intelligence
+
+The crop experience includes user-crop detail pages, diagnosis history/status, a timeline of stored crop events, deterministic informational crop guidance, and a label-rate arithmetic calculator. It does not create health scores, fabricate diagnoses, or generate guaranteed treatments. See `server/README.md` for the Phase 7 endpoint list and `server/inference/README.md` for model limitations.
+
+## Phase 8 onboarding and language
+
+The first-visit flow is welcome → language → authentication → profile setup. Existing authenticated users are routed using the server profile's `onboardingCompleted` state, while localStorage is used only for cached language and UI preferences. English, Hindi, Marathi, Bengali, Gujarati, Tamil, Telugu, and Punjabi have UTF-8 translations; other registered Indian languages explicitly fall back to English until their translations are added.
 
 ## Existing Vite template notes
 

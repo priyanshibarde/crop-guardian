@@ -1,6 +1,6 @@
 import { CheckCircle2, ImagePlus, ScanLine, Sparkles, Upload, XCircle } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, createScan } from '../api/client'
 import { sampleScans } from '../data/mockData'
 import { useLanguage } from '../i18n'
@@ -12,6 +12,7 @@ type UploadState = 'idle' | 'checking' | 'uploading' | 'processing' | 'not-leaf'
 export function ScanPage() {
   const { t } = useLanguage()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
   const [source, setSource] = useState<ScanSource>({ kind: 'demoScan', demoScan: 'tomato' })
   const [uploadState, setUploadState] = useState<UploadState>('idle')
@@ -38,7 +39,7 @@ export function ScanPage() {
       if (!validation.suitable) { setUploadState('not-leaf'); return }
       setUploadState('uploading')
       try {
-        const result = await createScan(source.uploadedImage)
+        const result = await createScan(source.uploadedImage, undefined, searchParams.get('userCropId') ?? undefined)
         setUploadState('processing')
         nav(`/diagnosis/${result.diagnosis.id}`)
       } catch (error) {
