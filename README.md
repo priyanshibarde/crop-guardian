@@ -1,4 +1,61 @@
-# React + TypeScript + Vite
+# Crop Guardian
+
+Crop Guardian currently contains the existing React frontend and a minimal Express API foundation. The backend is intentionally limited to infrastructure and a health check; authentication, persistence, uploads, diagnosis, and recommendations are not connected yet.
+
+## Local development
+
+### Frontend
+
+From the project root:
+
+```bash
+npm install
+npm run dev
+```
+
+The Vite frontend runs at `http://localhost:5173` by default. Copy `.env.example` to `.env` only if you need to override the API base URL.
+
+### Backend
+
+From the `server` directory:
+
+```bash
+npm install
+copy .env.example .env
+npm run db:migrate
+npm run dev
+```
+
+Before running the migration, configure PostgreSQL and set `DATABASE_URL` in `server/.env`. For a local PostgreSQL installation, create a database and application user with your own credentials, then use a connection string such as:
+
+```text
+DATABASE_URL=postgresql://crop_guardian_app:your-local-secret@localhost:5432/crop_guardian
+```
+
+The migration creates the initial users, profiles, preferences, crops, pets, and authentication-session tables. Do not commit `.env` or real credentials.
+
+The Express API runs at `http://localhost:4000` by default. Verify the foundation with:
+
+```bash
+curl http://localhost:4000/api/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+For a production-style local start after building:
+
+```bash
+npm run build
+npm run start
+```
+
+The frontend API abstraction is available at `src/api/client.ts`, but no existing page is connected to it yet. Existing localStorage and demo diagnosis behavior remain unchanged. See `server/README.md` for the full backend setup and endpoint list.
+
+## Existing Vite template notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
