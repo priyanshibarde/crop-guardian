@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { env } from '../config/env.js'
@@ -18,4 +18,9 @@ export async function storeImage(buffer: Buffer, mimeType: string): Promise<stri
   return storageKey
 }
 
-export const imageStorage = { storeImage }
+export async function removeImage(storageKey: string): Promise<void> {
+  if (!/^[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i.test(storageKey)) return
+  await unlink(join(env.uploadDirectory, storageKey)).catch(() => undefined)
+}
+
+export const imageStorage = { storeImage, removeImage }
