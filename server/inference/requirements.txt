@@ -1,0 +1,4 @@
+# Python 3.13-compatible runtime dependencies. Install inside a local venv.
+Pillow>=11.0,<13.0
+torch>=2.7,<3.0
+torchvision>=0.22,<1.0

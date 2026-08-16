@@ -1,6 +1,6 @@
 import { basename } from 'node:path'
 import { AppError } from '../middleware/errorHandler.js'
-import { createScanWithDiagnosis } from '../repositories/scanRepository.js'
+import { completeScanDiagnosis, createScanWithDiagnosis, failScanDiagnosis } from '../repositories/scanRepository.js'
 import { imageStorage } from './imageStorageService.js'
 import { infer } from './inferenceService.js'
 import type { Diagnosis, Scan } from '../types/diagnosis.js'
@@ -19,6 +19,14 @@ export async function createUploadedScan(userId: string, file: Express.Multer.Fi
     fileSize: file.size,
     storageKey,
   })
-  await infer({ imagePath: storageKey, mimeType: file.mimetype })
+  const inference = await infer({ imageKey: storageKey, mimeType: file.mimetype })
+  if (inference.status === 'completed' && inference.prediction) {
+    const completed = await completeScanDiagnosis(userId, result.scan.id, result.diagnosis.id, { prediction: inference.prediction, model: inference.model })
+    return { scan: { ...result.scan, status: completed.scanStatus }, diagnosis: { ...result.diagnosis, status: completed.diagnosisStatus, predictedCrop: inference.prediction.crop, predictedDisease: inference.prediction.disease, confidence: inference.prediction.confidence, modelName: inference.model.name, modelVersion: inference.model.version } }
+  }
+  if (inference.status === 'failed') {
+    const failed = await failScanDiagnosis(userId, result.scan.id, result.diagnosis.id)
+    return { scan: { ...result.scan, status: failed.scanStatus }, diagnosis: { ...result.diagnosis, status: failed.diagnosisStatus } }
+  }
   return result
 }

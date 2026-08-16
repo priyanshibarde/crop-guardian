@@ -33,3 +33,20 @@ export async function listDiagnosesForUser(userId: string, limit = 50, offset = 
 
 export async function updateScanStatus(id: string, status: ScanStatus): Promise<void> { await pool.query('UPDATE scans SET status = $1 WHERE id = $2', [status, id]) }
 export async function updateDiagnosisStatus(id: string, status: DiagnosisStatus, errorMessage?: string): Promise<void> { await pool.query('UPDATE diagnoses SET status = $1, error_message = $2 WHERE id = $3', [status, errorMessage ?? null, id]) }
+
+export async function completeScanDiagnosis(userId: string, scanId: string, diagnosisId: string, inference: { prediction: { crop: string; disease: string; confidence: number }; model: { name: string; version: string } }): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`UPDATE scans SET status = 'completed' WHERE id = $1 AND user_id = $2`, [scanId, userId])
+    await client.query(`UPDATE diagnoses SET predicted_crop = $1, predicted_disease = $2, confidence = $3, model_name = $4, model_version = $5, status = 'completed', error_message = NULL WHERE id = $6 AND user_id = $7`, [inference.prediction.crop, inference.prediction.disease, inference.prediction.confidence, inference.model.name, inference.model.version, diagnosisId, userId])
+    await client.query('COMMIT')
+    return { scanStatus: 'completed', diagnosisStatus: 'completed' }
+  } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+}
+
+export async function failScanDiagnosis(userId: string, scanId: string, diagnosisId: string): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {
+  await pool.query(`UPDATE scans SET status = 'failed' WHERE id = $1 AND user_id = $2`, [scanId, userId])
+  await pool.query(`UPDATE diagnoses SET status = 'failed', error_message = 'The image could not be analyzed.' WHERE id = $1 AND user_id = $2`, [diagnosisId, userId])
+  return { scanStatus: 'failed', diagnosisStatus: 'failed' }
+}

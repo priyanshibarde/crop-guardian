@@ -17,6 +17,9 @@ export const env = {
   sessionTtlDays: positivePort(process.env.SESSION_TTL_DAYS, 30),
   uploadDirectory: process.env.UPLOAD_DIRECTORY || join(process.cwd(), 'uploads'),
   maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES) > 0 ? Number(process.env.MAX_UPLOAD_BYTES) : 10 * 1024 * 1024,
+  inferenceServiceUrl: (process.env.INFERENCE_SERVICE_URL ?? 'http://127.0.0.1:5001').replace(/\/$/, ''),
+  modelName: process.env.MODEL_NAME ?? 'plant-disease-mobilenetv2',
+  modelVersion: process.env.MODEL_VERSION ?? 'unverified',
 }
 
 export function requireDatabaseUrl(): string {
