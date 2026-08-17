@@ -16,9 +16,16 @@ class ProviderError(Exception):
 
 
 @dataclass(frozen=True)
+class PredictionCandidate:
+    class_name: str
+    confidence: float
+
+
+@dataclass(frozen=True)
 class ProviderPrediction:
     class_name: str
     confidence: float
+    candidates: list[PredictionCandidate]
 
 
 class ModelProvider(Protocol):
@@ -89,8 +96,9 @@ class MobileNetV2Provider:
             from PIL import Image
             import torch
 
-            with Image.open(image_path) as image:
-                tensor = self._transform(image.convert("RGB")).unsqueeze(0).to(self._device)
+            with Image.open(image_path) as raw_image:
+                image = raw_image.convert("RGB")
+                tensor = self._transform(image).unsqueeze(0).to(self._device)
             with torch.no_grad():
                 output = self._model(tensor)
                 if getattr(output, "ndim", None) != 2 or output.shape[0] != 1 or output.shape[1] != self.output_class_count:
@@ -98,9 +106,15 @@ class MobileNetV2Provider:
                 probabilities = torch.softmax(output, dim=1)[0]
                 index = int(torch.argmax(probabilities).item())
                 confidence = float(probabilities[index].item())
+                top_k = min(5, len(self.class_names))
+                top_scores, top_indices = torch.topk(probabilities, top_k)
+                candidates = [
+                    PredictionCandidate(class_name=self.class_names[idx], confidence=float(score))
+                    for score, idx in zip(top_scores.tolist(), top_indices.tolist())
+                ]
             if index < 0 or index >= len(self.class_names) or not 0 <= confidence <= 1:
                 raise ProviderError("INVALID_MODEL_OUTPUT")
-            return ProviderPrediction(class_name=self.class_names[index], confidence=confidence)
+            return ProviderPrediction(class_name=self.class_names[index], confidence=confidence, candidates=candidates)
         except ProviderError:
             raise
         except Exception as error:

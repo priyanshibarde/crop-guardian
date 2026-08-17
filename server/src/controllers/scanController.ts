@@ -1,18 +1,34 @@
 import type { Request, Response } from 'express'
 import { AppError } from '../middleware/errorHandler.js'
 import { getCatalog, getUserCropForUser } from '../repositories/cropRepository.js'
-import { getDiagnosisByScanForUser, getDiagnosisForUser, getScanForUser, listDiagnosesForUser } from '../repositories/scanRepository.js'
+import {
+  deleteDiagnosisForUser,
+  deleteScanForUser,
+  getDiagnosisByScanForUser,
+  getDiagnosisForUser,
+  getScanForUser,
+  listDiagnosesForUser,
+} from '../repositories/scanRepository.js'
+import { imageStorage } from '../services/imageStorageService.js'
 import { createUploadedScan } from '../services/scanService.js'
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function safeDiagnosis(diagnosis: Awaited<ReturnType<typeof getDiagnosisByScanForUser>>) {
   if (!diagnosis) return null
+  let availability: 'unavailable' | 'unsupported_crop' | 'uncertain' | null = null
+  if (diagnosis.status === 'pending' && diagnosis.errorMessage === 'INFERENCE_UNAVAILABLE') {
+    availability = 'unavailable'
+  } else if (diagnosis.errorMessage === 'UNSUPPORTED_CROP') {
+    availability = 'unsupported_crop'
+  } else if (diagnosis.errorMessage === 'LOW_CONFIDENCE') {
+    availability = 'uncertain'
+  }
   return {
     id: diagnosis.id,
     scanId: diagnosis.scanId,
     status: diagnosis.status,
-    availability: diagnosis.status === 'pending' && diagnosis.errorMessage === 'INFERENCE_UNAVAILABLE' ? 'unavailable' : null,
+    availability,
     predictedCrop: diagnosis.status === 'completed' ? diagnosis.predictedCrop : null,
     predictedDisease: diagnosis.status === 'completed' ? diagnosis.predictedDisease : null,
     scientificName: diagnosis.status === 'completed' ? diagnosis.scientificName : null,
@@ -23,7 +39,7 @@ function safeDiagnosis(diagnosis: Awaited<ReturnType<typeof getDiagnosisByScanFo
     symptoms: diagnosis.status === 'completed' ? diagnosis.symptoms : [],
     actions: diagnosis.status === 'completed' ? diagnosis.actions : [],
     prevention: diagnosis.status === 'completed' ? diagnosis.prevention : [],
-    errorMessage: diagnosis.status === 'failed' ? 'The diagnosis could not be completed.' : undefined,
+    errorMessage: diagnosis.status === 'failed' ? 'The diagnosis could not be completed.' : diagnosis.errorMessage || undefined,
     createdAt: diagnosis.createdAt,
     updatedAt: diagnosis.updatedAt,
   }
@@ -53,12 +69,38 @@ export async function getScan(request: Request, response: Response): Promise<voi
   })
 }
 
+export async function deleteScan(request: Request, response: Response): Promise<void> {
+  const id = request.params.id as string
+  if (!uuidPattern.test(id)) throw new AppError(400, 'INVALID_SCAN_ID', 'The scan ID is invalid.')
+  const storageKey = await deleteScanForUser(request.authUser!.id, id)
+  if (!storageKey) throw new AppError(404, 'SCAN_NOT_FOUND', 'Scan not found.')
+  try {
+    await imageStorage.removeImage(storageKey)
+  } catch {
+    // Best effort image cleanup
+  }
+  response.json({ success: true })
+}
+
 export async function getDiagnosis(request: Request, response: Response): Promise<void> {
   const id = request.params.id as string
   if (!uuidPattern.test(id)) throw new AppError(404, 'DIAGNOSIS_NOT_FOUND', 'Diagnosis not found.')
   const diagnosis = await getDiagnosisForUser(request.authUser!.id, id)
   if (!diagnosis) throw new AppError(404, 'DIAGNOSIS_NOT_FOUND', 'Diagnosis not found.')
   response.json(safeDiagnosis(diagnosis))
+}
+
+export async function deleteDiagnosis(request: Request, response: Response): Promise<void> {
+  const id = request.params.id as string
+  if (!uuidPattern.test(id)) throw new AppError(400, 'INVALID_DIAGNOSIS_ID', 'The diagnosis ID is invalid.')
+  const storageKey = await deleteDiagnosisForUser(request.authUser!.id, id)
+  if (!storageKey) throw new AppError(404, 'DIAGNOSIS_NOT_FOUND', 'Diagnosis not found.')
+  try {
+    await imageStorage.removeImage(storageKey)
+  } catch {
+    // Best effort image cleanup
+  }
+  response.json({ success: true })
 }
 
 export async function getDiagnoses(request: Request, response: Response): Promise<void> {

@@ -10,6 +10,7 @@ import { translateCropName, useLanguage } from '../i18n'
 
 function statusFor(detail: UserCropDetail, t: Record<string, string>) {
   if (!detail.latestDiagnosis) return { label: t.noDiagnosis, tone: 'amber' as const }
+  if (detail.latestDiagnosis.availability === 'unsupported_crop') return { label: t.unavailable || 'Unsupported', tone: 'amber' as const }
   if (detail.latestDiagnosis.availability === 'unavailable') return { label: t.aiUnavailable, tone: 'amber' as const }
   if (detail.latestDiagnosis.status === 'pending') return { label: t.analysisPending, tone: 'amber' as const }
   if (detail.latestDiagnosis.status === 'failed') return { label: t.analysisFailed, tone: 'red' as const }

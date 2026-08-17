@@ -9,6 +9,7 @@ import { Card, Modal, PageHeader, Pill } from '../components/ui/UI'
 function diagnosisStatus(detail: UserCropDetail | undefined, t: Record<string, string>) {
   const diagnosis = detail?.latestDiagnosis
   if (!diagnosis) return { label: t.noDiagnosis, tone: 'amber' as const }
+  if (diagnosis.availability === 'unsupported_crop') return { label: t.unavailable || 'Unsupported', tone: 'amber' as const }
   if (diagnosis.availability === 'unavailable') return { label: t.aiUnavailable, tone: 'amber' as const }
   if (diagnosis.status === 'pending') return { label: t.analysisPending, tone: 'amber' as const }
   if (diagnosis.status === 'failed') return { label: t.analysisFailed, tone: 'red' as const }

@@ -1,17 +1,42 @@
-import { CheckCircle2, ImagePlus, ScanLine, Sparkles, Upload, XCircle } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { AlertCircle, CheckCircle2, ImagePlus, ScanLine, Sparkles, Upload, XCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ApiError, createScan } from '../api/client'
+import { ApiError, createScan, getUserCrops, getCrops } from '../api/client'
 import { sampleScans } from '../data/mockData'
-import { useLanguage } from '../i18n'
+import { translateCropName, useLanguage } from '../i18n'
 import { analyzeDemoScan, validateUploadedImage, type DemoScanId, type ScanSource } from '../services/diagnosisService'
 import { storage } from '../services/storageService'
 import { PageHeader } from '../components/ui/UI'
+import type { CropCatalog, UserCrop } from '../types'
 
 type UploadState = 'idle' | 'checking' | 'uploading' | 'processing' | 'not-leaf' | 'upload-error'
 
+const SUPPORTED_MODEL_CROPS = new Set([
+  'apple',
+  'blueberry',
+  'cherry',
+  'corn',
+  'corn (maize)',
+  'maize',
+  'grape',
+  'grapes',
+  'orange',
+  'peach',
+  'pepper',
+  'pepper, bell',
+  'bell pepper',
+  'chilli',
+  'chili',
+  'potato',
+  'raspberry',
+  'soybean',
+  'squash',
+  'strawberry',
+  'tomato',
+])
+
 export function ScanPage() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const nav = useNavigate()
   const [searchParams] = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -19,9 +44,24 @@ export function ScanPage() {
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [loading, setLoading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [userCrops, setUserCrops] = useState<UserCrop[]>([])
+  const [catalogCrops, setCatalogCrops] = useState<CropCatalog[]>([])
+  const [selectedCropId, setSelectedCropId] = useState<string>(searchParams.get('cropId') || '')
+  const [selectedUserCropId, setSelectedUserCropId] = useState<string>(searchParams.get('userCropId') || '')
+
+  useEffect(() => {
+    getUserCrops().then(setUserCrops).catch(() => [])
+    getCrops().then(setCatalogCrops).catch(() => [])
+  }, [])
 
   const isDemoScan = source.kind === 'demoScan'
   const preview = source.kind === 'uploadedImage' ? source.previewUrl : undefined
+
+  // Identify selected crop name
+  const selectedUserCrop = userCrops.find((c) => c.id === selectedUserCropId)
+  const selectedCatalogCrop = catalogCrops.find((c) => c.id === selectedCropId)
+  const activeCropName = selectedUserCrop?.name || selectedCatalogCrop?.name
+  const isSelectedCropUnsupported = activeCropName ? !SUPPORTED_MODEL_CROPS.has(activeCropName.trim().toLowerCase()) : false
 
   const choosePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -47,7 +87,11 @@ export function ScanPage() {
       }
       setUploadState('uploading')
       try {
-        const result = await createScan(source.uploadedImage, undefined, searchParams.get('userCropId') ?? undefined)
+        const result = await createScan(
+          source.uploadedImage,
+          selectedCropId || undefined,
+          selectedUserCropId || undefined
+        )
         setUploadState('processing')
         nav(`/diagnosis/${result.diagnosis.id}`)
       } catch (error) {
@@ -75,6 +119,65 @@ export function ScanPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_.85fr]">
         <div className="rounded-[32px] border-2 border-dashed border-forest/20 bg-white p-6 sm:p-8 shadow-sm flex flex-col justify-between">
           <div>
+            {/* Optional Crop Selection */}
+            <div className="mb-5">
+              <label htmlFor="cropSelect" className="block text-xs font-black uppercase tracking-wider text-ink/70 mb-2">
+                {t.selectCropToScan || 'Select crop to scan (optional)'}
+              </label>
+              <select
+                id="cropSelect"
+                value={selectedUserCropId ? `user:${selectedUserCropId}` : selectedCropId ? `cat:${selectedCropId}` : ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (!val) {
+                    setSelectedUserCropId('')
+                    setSelectedCropId('')
+                  } else if (val.startsWith('user:')) {
+                    setSelectedUserCropId(val.replace('user:', ''))
+                    setSelectedCropId('')
+                  } else if (val.startsWith('cat:')) {
+                    setSelectedCropId(val.replace('cat:', ''))
+                    setSelectedUserCropId('')
+                  }
+                }}
+                className="w-full rounded-2xl border border-ink/10 bg-slate-50 px-4 py-3 text-sm font-bold text-ink focus:border-forest focus:outline-none"
+              >
+                <option value="">{t.generalScan || 'General / Auto-detect crop'}</option>
+                {userCrops.length > 0 && (
+                  <optgroup label={t.myCrops || 'My Crops'}>
+                    {userCrops.map((c) => (
+                      <option key={`user-${c.id}`} value={`user:${c.id}`}>
+                        {c.customName || translateCropName(c.name, lang)} {c.variety ? `(${c.variety})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label={t.allSupportedCrops || 'Crop Catalog'}>
+                  {catalogCrops.map((c) => (
+                    <option key={`cat-${c.id}`} value={`cat:${c.id}`}>
+                      {translateCropName(c.name, lang)}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
+            {isSelectedCropUnsupported && (
+              <div className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 animate-fadeIn">
+                <div className="flex gap-3">
+                  <AlertCircle className="shrink-0 text-amber-600 mt-0.5" size={20} />
+                  <div className="text-xs leading-relaxed">
+                    <p className="font-black text-amber-950">
+                      {t.unsupportedCropNotice || 'AI model does not currently support reliable diagnosis for this crop.'}
+                    </p>
+                    <p className="mt-1 text-amber-800/90">
+                      {t.unsupportedCropAdvice || 'Our AI model currently recognizes leaf diseases for 14 crops (Tomato, Potato, Corn, Apple, Grape, Chilli, etc.).'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={choosePhoto} />
             <button
               onClick={() => inputRef.current?.click()}

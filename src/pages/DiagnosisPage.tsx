@@ -1,13 +1,14 @@
-import { ArrowRight, CheckCircle2, ChevronLeft, CircleHelp, MapPinned, ShieldCheck, Sparkles } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, CircleHelp, MapPinned, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ApiError, getDiagnosis, type BackendDiagnosis } from '../api/client'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ApiError, deleteDiagnosis, getDiagnosis, type BackendDiagnosis } from '../api/client'
 import { storage } from '../services/storageService'
 import type { Diagnosis } from '../types'
 import { Card, PageHeader, Pill } from '../components/ui/UI'
 import { translateCropName, useLanguage } from '../i18n'
 
 function formattedAssessmentDate(date: string, lang: string) {
+  if (!date) return 'TODAY'
   if (['today', 'just now'].includes(date.trim().toLowerCase())) return 'TODAY'
   const parsed = new Date(date)
   return Number.isNaN(parsed.getTime())
@@ -21,17 +22,99 @@ function isBackendId(id: string | undefined) {
   return Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
 }
 
-function PendingDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
+function DeleteModal({
+  open,
+  onClose,
+  onConfirm,
+  isDeleting,
+}: {
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+  isDeleting: boolean
+}) {
   const { t } = useLanguage()
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl animate-scaleUp">
+        <div className="flex items-center gap-3 text-red-600">
+          <span className="grid h-10 w-10 place-items-center rounded-2xl bg-red-100">
+            <Trash2 size={20} />
+          </span>
+          <h3 className="text-lg font-black text-ink">{t.deleteScanTitle || 'Delete scan?'}</h3>
+        </div>
+        <p className="mt-3 text-sm text-ink/70 leading-relaxed">
+          {t.deleteScanConfirm || 'Are you sure you want to delete this scan and diagnosis history? This action cannot be undone.'}
+        </p>
+        <p className="mt-2 text-xs text-ink/50">
+          {t.deleteScanWarning || 'This permanently removes the uploaded leaf photo, AI diagnosis, and recommendations.'}
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onClose}
+            className="rounded-xl border border-ink/10 px-4 py-2.5 text-sm font-bold text-ink/70 hover:bg-slate-50 transition"
+          >
+            {t.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onConfirm}
+            className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50"
+          >
+            {isDeleting ? t.deleting || 'Deleting…' : t.delete || 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PendingDiagnosis({
+  diagnosis,
+  onDelete,
+}: {
+  diagnosis: BackendDiagnosis
+  onDelete: () => void
+}) {
+  const { t } = useLanguage()
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const failed = diagnosis.status === 'failed'
   const unavailable = diagnosis.availability === 'unavailable'
 
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteDiagnosis(diagnosis.id)
+      onDelete()
+    } catch {
+      setDeleting(false)
+      setShowDelete(false)
+    }
+  }
+
   return (
     <>
-      <PageHeader
-        eyebrow="Crop Guardian"
-        title={failed ? t.diagnosisUnavailable : unavailable ? t.aiUnavailable : t.analysisPending}
-      />
+      <div className="flex items-center justify-between mb-2">
+        <PageHeader
+          eyebrow="Crop Guardian"
+          title={failed ? t.diagnosisUnavailable : unavailable ? t.aiUnavailable : t.analysisPending}
+        />
+        <button
+          onClick={() => setShowDelete(true)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
+          title={t.deleteScan || 'Delete scan'}
+        >
+          <Trash2 size={15} />
+          {t.delete || 'Delete'}
+        </button>
+      </div>
+
       <section className="rounded-[32px] bg-white p-6 sm:p-8 shadow-sm">
         <div className="grid min-h-56 place-items-center rounded-3xl bg-mint/40 text-center p-6">
           <div>
@@ -57,29 +140,100 @@ function PendingDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
           {t.returnToScanner}
         </Link>
       </section>
+
+      <DeleteModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={() => void handleDelete()}
+        isDeleting={deleting}
+      />
     </>
   )
 }
 
-function CompletedDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
+function CompletedDiagnosis({
+  diagnosis,
+  onDelete,
+}: {
+  diagnosis: BackendDiagnosis
+  onDelete: () => void
+}) {
   const { t, lang } = useLanguage()
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const confidence = diagnosis.confidence === null ? null : Math.round(diagnosis.confidence * 100)
   const cropDisplay = diagnosis.predictedCrop ? translateCropName(diagnosis.predictedCrop, lang) : t.crop
+  const isUnsupported = diagnosis.availability === 'unsupported_crop'
+  const isUncertain = diagnosis.availability === 'uncertain'
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteDiagnosis(diagnosis.id)
+      onDelete()
+    } catch {
+      setDeleting(false)
+      setShowDelete(false)
+    }
+  }
 
   return (
     <>
-      <Link
-        to="/scan"
-        className="mb-4 inline-flex items-center gap-1 text-sm font-extrabold text-forest hover:text-emerald-800 transition"
-      >
-        <ChevronLeft size={18} />
-        {t.newScan}
-      </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link
+          to="/scan"
+          className="inline-flex items-center gap-1 text-sm font-extrabold text-forest hover:text-emerald-800 transition"
+        >
+          <ChevronLeft size={18} />
+          {t.newScan}
+        </Link>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 transition"
+        >
+          <Trash2 size={15} />
+          {t.deleteScan || 'Delete scan'}
+        </button>
+      </div>
 
       <PageHeader
         eyebrow={`${t.aiAssistedAssessment} · ${formattedAssessmentDate(diagnosis.createdAt, lang)}`}
-        title={`${cropDisplay}: ${diagnosis.predictedDisease ?? t.diagnosis}`}
+        title={isUnsupported ? `${cropDisplay}` : `${cropDisplay}: ${diagnosis.predictedDisease ?? t.diagnosis}`}
       />
+
+      {/* Unsupported Crop Notice */}
+      {isUnsupported && (
+        <div className="mb-6 rounded-[28px] border-2 border-amber-300 bg-amber-50 p-6 text-amber-950 shadow-sm animate-fadeIn">
+          <div className="flex items-start gap-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700">
+              <AlertCircle size={26} />
+            </span>
+            <div>
+              <h2 className="text-lg font-black text-amber-950">
+                {t.unsupportedCropNotice || 'AI model does not currently support reliable diagnosis for this crop.'}
+              </h2>
+              <p className="mt-2 text-sm text-amber-900/85 leading-relaxed">
+                {t.unsupportedCropAdvice || 'Our AI model currently recognizes leaf diseases for 14 crops (Tomato, Potato, Corn, Apple, Grape, Chilli, etc.). For unsupported crops, please consult your local Krishi Vigyan Kendra (KVK) or agricultural extension officer.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Uncertainty Notice */}
+      {isUncertain && !isUnsupported && (
+        <div className="mb-6 rounded-[28px] border-2 border-amber-200 bg-amber-50/80 p-5 text-amber-900 shadow-sm animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="shrink-0 text-amber-600 mt-0.5" size={22} />
+            <div>
+              <h3 className="font-black text-amber-950 text-sm">{t.predictionUncertain || 'Prediction uncertain'}</h3>
+              <p className="mt-1 text-xs text-amber-900/80 leading-relaxed">
+                {t.predictionUncertainNotice || 'The model confidence is low. Please take a clear, close-up photo of the leaf in bright, natural light.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
         <section className="rounded-[32px] bg-white p-6 shadow-sm flex flex-col justify-between">
@@ -88,12 +242,14 @@ function CompletedDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
               <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-forest">
                 <Sparkles size={15} /> {t.aiAssistedAssessment}
               </span>
-              <Pill tone={diagnosis.severity === 'High' ? 'red' : diagnosis.severity === 'Moderate' ? 'amber' : 'green'}>
-                {diagnosis.severity || t.completed}
+              <Pill tone={isUnsupported ? 'amber' : diagnosis.severity === 'High' ? 'red' : diagnosis.severity === 'Moderate' ? 'amber' : 'green'}>
+                {isUnsupported ? t.unavailable || 'Unsupported' : diagnosis.severity || t.completed}
               </Pill>
             </div>
 
-            <h2 className="mt-4 text-2xl font-black text-ink">{diagnosis.predictedDisease}</h2>
+            <h2 className="mt-4 text-2xl font-black text-ink">
+              {isUnsupported ? `${cropDisplay}` : diagnosis.predictedDisease ?? t.diagnosis}
+            </h2>
             {diagnosis.scientificName && (
               <p className="mt-1 text-sm italic font-medium text-ink/55">{diagnosis.scientificName}</p>
             )}
@@ -188,6 +344,13 @@ function CompletedDiagnosis({ diagnosis }: { diagnosis: BackendDiagnosis }) {
           </Link>
         </section>
       </div>
+
+      <DeleteModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={() => void handleDelete()}
+        isDeleting={deleting}
+      />
     </>
   )
 }
@@ -304,6 +467,7 @@ function DemoDiagnosis({ d }: { d: Diagnosis }) {
 export function DiagnosisPage() {
   const { t } = useLanguage()
   const { id } = useParams()
+  const nav = useNavigate()
   const [backendDiagnosis, setBackendDiagnosis] = useState<BackendDiagnosis | null>(null)
   const [backendError, setBackendError] = useState(false)
   const [notFound, setNotFound] = useState(false)
@@ -343,11 +507,19 @@ export function DiagnosisPage() {
     }
   }, [id])
 
+  const handleDeleted = () => {
+    nav('/diagnoses')
+  }
+
   if (loading) return <p className="py-12 text-center text-sm font-bold text-ink/45">{t.pleaseWait}</p>
 
   if (isBackendId(id)) {
-    if (backendDiagnosis?.status === 'completed') return <CompletedDiagnosis diagnosis={backendDiagnosis} />
-    if (backendDiagnosis) return <PendingDiagnosis diagnosis={backendDiagnosis} />
+    if (backendDiagnosis?.status === 'completed') {
+      return <CompletedDiagnosis diagnosis={backendDiagnosis} onDelete={handleDeleted} />
+    }
+    if (backendDiagnosis) {
+      return <PendingDiagnosis diagnosis={backendDiagnosis} onDelete={handleDeleted} />
+    }
     if (notFound) {
       return (
         <Card className="text-center py-12">
@@ -383,6 +555,7 @@ export function DiagnosisPage() {
           updatedAt: '',
           errorMessage: backendError ? 'unavailable' : undefined,
         }}
+        onDelete={handleDeleted}
       />
     )
   }

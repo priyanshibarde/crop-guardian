@@ -1,4 +1,22 @@
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, HeartPulse, MapPin, Plus, Search, ShieldCheck, Sprout, Trash2 } from 'lucide-react'
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  Check,
+  CheckCircle2,
+  FileText,
+  HeartPulse,
+  Languages,
+  MapPin,
+  Plus,
+  Search,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Sprout,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createPet, createUserCrop, getPets, getProfile, getUserCrops, updateProfile, type LoginInput, type RegisterInput } from '../api/client'
@@ -61,61 +79,191 @@ const Step = ({ label }: { label: string }) => (
 )
 
 export function WelcomePage() {
-  const { t } = useLanguage()
+  const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
+
   return (
-    <Shell>
-      <div className="rounded-[32px] bg-forest p-7 text-white shadow-lg sm:p-9">
-        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-white/15 shadow-xs">
-          <Sprout size={32} />
-        </span>
-        <h1 className="mt-7 text-3xl sm:text-4xl font-black leading-tight">Crop Guardian</h1>
-        <p className="mt-4 text-base font-bold leading-relaxed text-emerald-100">{t.welcome}</p>
-        <p className="mt-2 text-sm leading-relaxed text-emerald-100/80">{t.welcomeText}</p>
-        <ul className="mt-6 space-y-2.5 text-sm font-bold text-emerald-50">
-          <li className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            {t.scanCrop}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            {t.diseaseIntelligence}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            {t.recommendations}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            {t.tracking}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            {t.earlyWarning}
-          </li>
-        </ul>
-      </div>
+    <main className="min-h-screen bg-[#f5f7f3] text-ink selection:bg-mint selection:text-forest">
+      {/* Top Navbar */}
+      <header className="sticky top-0 z-30 bg-[#f5f7f3]/90 backdrop-blur-md border-b border-emerald-950/5">
+        <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-forest text-white shadow-xs">
+              <HeartPulse size={22} />
+            </span>
+            <span className="font-black text-lg text-forest tracking-tight leading-none">
+              CROP<br />GUARDIAN
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as LanguageCode)}
+              aria-label="Language selector"
+              className="rounded-xl border border-ink/10 bg-white px-3 py-1.5 text-xs font-black text-ink shadow-xs focus:outline-none"
+            >
+              {languages.map(([id, native, name]) => (
+                <option key={id} value={id}>
+                  {native} ({name})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => navigate('/onboarding/auth?mode=login')}
+              className="rounded-xl border border-forest/20 bg-white px-4 py-2 text-xs font-black text-forest hover:bg-slate-50 transition shadow-xs"
+            >
+              {t.signIn}
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <div className="mt-6 grid gap-3">
-        <button
-          onClick={() => navigate('/onboarding/language')}
-          className="rounded-2xl bg-coral px-5 py-4 font-black text-white shadow-md hover:bg-orange-600 transition"
-        >
-          {t.getStarted}
-        </button>
-        <button
-          onClick={() => navigate('/onboarding/auth?mode=login')}
-          className="rounded-2xl border-2 border-forest/20 bg-white px-5 py-3.5 font-black text-forest hover:bg-slate-50 transition"
-        >
-          {t.signIn}
-        </button>
-      </div>
+      {/* Hero Section */}
+      <section className="max-w-6xl mx-auto px-5 pt-10 pb-16 lg:pt-16 lg:pb-20">
+        <div className="grid lg:grid-cols-[1.2fr_.9fr] gap-10 items-center">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-forest/10 px-3.5 py-1.5 text-xs font-extrabold text-forest">
+              <Sparkles size={14} />
+              {t.aiAssistedAssessment}
+            </span>
+            <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black text-ink leading-[1.1] tracking-tight">
+              {t.heroTitle || 'AI-powered crop health assistant for smarter farming.'}
+            </h1>
+            <p className="mt-5 text-base sm:text-lg text-ink/70 leading-relaxed max-w-xl">
+              {t.heroSubtitle || 'Scan leaf photos, detect diseases early, understand symptoms, and get actionable agricultural guidance.'}
+            </p>
 
-      <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-bold text-ink/45">
-        <ShieldCheck size={15} />
-        {t.localOnly}
-      </p>
-    </Shell>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <button
+                onClick={() => navigate('/onboarding/language')}
+                className="rounded-2xl bg-coral px-8 py-4 text-base font-black text-white shadow-lg hover:bg-orange-600 hover:shadow-xl transition-all transform active:scale-95"
+              >
+                {t.getStarted}
+              </button>
+              <button
+                onClick={() => navigate('/onboarding/auth?mode=register')}
+                className="rounded-2xl border-2 border-forest/20 bg-white px-7 py-4 text-base font-black text-forest hover:bg-slate-50 transition shadow-sm"
+              >
+                {t.createAccount || 'Create account'}
+              </button>
+            </div>
+
+            <div className="mt-8 flex items-center gap-6 text-xs font-bold text-ink/55">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-forest" />
+                14+ Supported Crops
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-forest" />
+                8 Indian Languages
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-forest" />
+                100% Private & Secure
+              </span>
+            </div>
+          </div>
+
+          {/* Hero Banner Card */}
+          <div className="relative rounded-[36px] bg-gradient-to-br from-forest to-emerald-950 p-8 text-white shadow-2xl overflow-hidden">
+            <span className="absolute -right-12 -top-12 h-56 w-56 rounded-full border-[32px] border-emerald-300/15" />
+            <div className="relative z-10">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-white shadow-xs">
+                <Sprout size={28} />
+              </div>
+              <h2 className="mt-6 text-2xl sm:text-3xl font-black">{t.welcome}</h2>
+              <p className="mt-3 text-sm text-emerald-100/85 leading-relaxed">{t.welcomeText}</p>
+
+              <div className="mt-6 rounded-2xl bg-white/10 p-4 backdrop-blur-xs border border-white/15">
+                <div className="flex items-center justify-between text-xs font-black text-emerald-200 uppercase tracking-wider">
+                  <span>Leaf Disease Detection</span>
+                  <span>Active Model</span>
+                </div>
+                <p className="mt-1 font-black text-white text-base">MobileNetV2 Plant Classifier</p>
+                <p className="text-xs text-emerald-100/70 mt-0.5">38 Health & Disease Classes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="bg-white py-16 border-y border-emerald-950/5">
+        <div className="max-w-6xl mx-auto px-5">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs font-black uppercase tracking-widest text-forest">Simple 4-Step Process</span>
+            <h2 className="mt-2 text-3xl font-black text-ink">{t.howItWorks || 'How it works'}</h2>
+          </div>
+
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { num: '01', title: t.step1Title || '1. Add your crop', desc: t.step1Desc || 'Add crops you grow to personalize your health monitoring.' },
+              { num: '02', title: t.step2Title || '2. Take or upload photo', desc: t.step2Desc || 'Capture a clear, close-up photo of any diseased leaf.' },
+              { num: '03', title: t.step3Title || '3. AI analyzes image', desc: t.step3Desc || 'Our model evaluates spots, lesions, and symptoms in seconds.' },
+              { num: '04', title: t.step4Title || '4. Review guidance', desc: t.step4Desc || 'Get clear explanations, treatment steps, and prevention tips.' },
+            ].map((step) => (
+              <div key={step.num} className="rounded-3xl bg-[#f5f7f3] p-6 border border-emerald-950/5 relative flex flex-col justify-between">
+                <span className="text-2xl font-black text-forest/30 font-mono">{step.num}</span>
+                <div className="mt-4">
+                  <h3 className="text-lg font-black text-ink">{step.title}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-ink/65">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="max-w-6xl mx-auto px-5 py-16">
+        <div className="text-center max-w-2xl mx-auto">
+          <span className="text-xs font-black uppercase tracking-widest text-forest">Features & Capabilities</span>
+          <h2 className="mt-2 text-3xl font-black text-ink">{t.featuresTitle || 'Comprehensive Crop Protection'}</h2>
+        </div>
+
+        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            { icon: Camera, title: t.feat1Title || 'AI Crop Diagnosis', desc: t.feat1Desc || 'Instant detection of diseases with severity indicators and confidence scoring.' },
+            { icon: Sprout, title: t.feat2Title || 'Crop Tracking', desc: t.feat2Desc || 'Track plant growth stages, health scores, and scheduled farming tasks.' },
+            { icon: Activity, title: t.feat3Title || 'Disease History', desc: t.feat3Desc || 'Maintain photo records and diagnosis logs for every field and season.' },
+            { icon: FileText, title: t.feat4Title || 'Agricultural Recommendations', desc: t.feat4Desc || 'Practical organic and chemical treatment advice tailored for farmers.' },
+            { icon: Languages, title: t.feat5Title || 'Multilingual Support', desc: t.feat5Desc || 'Available in 8 Indian languages with localized crop terminology.' },
+            { icon: Shield, title: t.feat6Title || 'Privacy-Focused Account', desc: t.feat6Desc || 'Full control over your data with secure storage and single-click account deletion.' },
+          ].map((feat, i) => (
+            <div key={i} className="rounded-3xl bg-white p-6 shadow-sm border border-emerald-950/5 hover:-translate-y-1 hover:shadow-md transition">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-mint text-forest shadow-xs">
+                <feat.icon size={22} />
+              </span>
+              <h3 className="mt-4 text-base font-black text-ink">{feat.title}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-ink/60">{feat.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom CTA Banner */}
+        <div className="mt-16 rounded-[36px] bg-forest p-8 sm:p-12 text-center text-white shadow-xl">
+          <h2 className="text-2xl sm:text-3xl font-black max-w-lg mx-auto leading-tight">
+            {t.welcome}
+          </h2>
+          <p className="mt-3 text-sm text-emerald-100/80 max-w-md mx-auto">
+            {t.welcomeText}
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <button
+              onClick={() => navigate('/onboarding/language')}
+              className="rounded-2xl bg-coral px-8 py-4 text-sm font-black text-white shadow-lg hover:bg-orange-600 transition"
+            >
+              {t.getStarted}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-emerald-950/5 py-8 text-center text-xs font-bold text-ink/40">
+        <p>© 2026 Crop Guardian. Built for resilient and informed farming.</p>
+      </footer>
+    </main>
   )
 }
 

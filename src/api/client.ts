@@ -2,7 +2,7 @@ import type { CropCatalog, UserCrop, UserCropDetail, UserProfile, CropTimelineEv
 
 export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type DiagnosisStatus = 'pending' | 'completed' | 'failed'
-export type DiagnosisAvailability = 'unavailable' | null
+export type DiagnosisAvailability = 'unavailable' | 'unsupported_crop' | 'uncertain' | null
 export type BackendDiagnosis = {
   id: string
   scanId: string
@@ -68,6 +68,7 @@ export type UserCropInput = { cropId?: string; name?: string; customName?: strin
 export const register = (input: RegisterInput) => apiRequest<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(input) })
 export const login = (input: LoginInput) => apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(input) })
 export const logout = () => apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' })
+export const deleteAccount = () => apiRequest<{ success: boolean }>('/auth/account', { method: 'DELETE' })
 export const getCurrentUser = () => apiRequest<CurrentUserResponse>('/auth/me')
 export const getProfile = () => apiRequest<UserProfile>('/profile')
 export const updateProfile = (input: ProfileUpdate) => apiRequest<UserProfile>('/profile', { method: 'PUT', body: JSON.stringify(input) })
@@ -81,7 +82,9 @@ export const updateUserCrop = (id: string, input: UserCropInput) => apiRequest<U
 export const deleteUserCrop = (id: string) => apiRequest<{ success: boolean }>(`/user-crops/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export const createScan = (file: File, cropId?: string, userCropId?: string) => { const form = new FormData(); form.append('image', file); if (cropId) form.append('cropId', cropId); if (userCropId) form.append('userCropId', userCropId); return apiRequest<CreateScanResponse>('/scans', { method: 'POST', body: form }) }
 export const getScan = (id: string) => apiRequest<ScanResponse>(`/scans/${encodeURIComponent(id)}`)
+export const deleteScan = (id: string) => apiRequest<{ success: boolean }>(`/scans/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export const getDiagnosis = (id: string) => apiRequest<BackendDiagnosis>(`/diagnoses/${encodeURIComponent(id)}`)
+export const deleteDiagnosis = (id: string) => apiRequest<{ success: boolean }>(`/diagnoses/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export const getDiagnoses = () => apiRequest<BackendDiagnosis[]>('/diagnoses')
 export const getUserCropDetail = (id: string) => apiRequest<UserCropDetail>(`/user-crops/${encodeURIComponent(id)}`)
 export const getUserCropDiagnoses = (id: string) => apiRequest<DiagnosisSummary[]>(`/user-crops/${encodeURIComponent(id)}/diagnoses`)

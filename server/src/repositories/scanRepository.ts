@@ -19,7 +19,11 @@ export async function createScanWithDiagnosis(input: { userId: string; cropId?: 
 const diagnosisSummarySelect = `SELECT d.id, d.scan_id AS "scanId", d.status, d.predicted_crop AS "predictedCrop", d.predicted_disease AS "predictedDisease", d.severity, d.confidence, d.model_name AS "modelName", d.model_version AS "modelVersion", d.error_message AS "errorMessage", d.created_at AS "createdAt", d.updated_at AS "updatedAt" FROM diagnoses d`
 
 function summary(row: DiagnosisSummary & { errorMessage?: string | null }): DiagnosisSummary {
-  return { ...row, availability: row.status === 'pending' && row.errorMessage === 'INFERENCE_UNAVAILABLE' ? 'unavailable' : null }
+  let availability: 'unavailable' | 'unsupported_crop' | 'uncertain' | null = null
+  if (row.status === 'pending' && row.errorMessage === 'INFERENCE_UNAVAILABLE') availability = 'unavailable'
+  else if (row.errorMessage === 'UNSUPPORTED_CROP') availability = 'unsupported_crop'
+  else if (row.errorMessage === 'LOW_CONFIDENCE') availability = 'uncertain'
+  return { ...row, availability, errorMessage: row.errorMessage }
 }
 
 export async function listDiagnosesForUserCrop(userId: string, userCropId: string): Promise<DiagnosisSummary[]> {
@@ -56,19 +60,29 @@ export async function updateDiagnosisStatus(id: string, status: DiagnosisStatus,
 
 import { getDiseaseInfo } from '../data/diseaseCatalog.js'
 
-export async function completeScanDiagnosis(userId: string, scanId: string, diagnosisId: string, inference: { prediction: { className?: string; crop: string; disease: string; confidence: number }; model: { name: string; version: string } }): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {
+export async function completeScanDiagnosis(
+  userId: string,
+  scanId: string,
+  diagnosisId: string,
+  inference: {
+    prediction: { className?: string; crop: string; disease: string; confidence: number };
+    model: { name: string; version: string };
+    isUncertain?: boolean;
+  }
+): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {
   const info = inference.prediction.className ? getDiseaseInfo(inference.prediction.className) : undefined
   const scientificName = info?.scientificName ?? null
   const severity = info?.severity ?? null
   const symptoms = JSON.stringify(info?.symptoms ?? [])
   const actions = JSON.stringify(info?.actions ?? [])
   const prevention = JSON.stringify(info?.prevention ?? [])
+  const errorMessage = inference.isUncertain ? 'LOW_CONFIDENCE' : null
 
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
     await client.query(`UPDATE scans SET status = 'completed' WHERE id = $1 AND user_id = $2`, [scanId, userId])
-    await client.query(`UPDATE diagnoses SET predicted_crop = $1, predicted_disease = $2, scientific_name = $3, severity = $4, confidence = $5, model_name = $6, model_version = $7, symptoms = $8::jsonb, actions = $9::jsonb, prevention = $10::jsonb, status = 'completed', error_message = NULL WHERE id = $11 AND user_id = $12`, [
+    await client.query(`UPDATE diagnoses SET predicted_crop = $1, predicted_disease = $2, scientific_name = $3, severity = $4, confidence = $5, model_name = $6, model_version = $7, symptoms = $8::jsonb, actions = $9::jsonb, prevention = $10::jsonb, status = 'completed', error_message = $11 WHERE id = $12 AND user_id = $13`, [
       inference.prediction.crop,
       info?.disease ?? inference.prediction.disease,
       scientificName,
@@ -79,12 +93,78 @@ export async function completeScanDiagnosis(userId: string, scanId: string, diag
       symptoms,
       actions,
       prevention,
+      errorMessage,
       diagnosisId,
       userId,
     ])
     await client.query('COMMIT')
     return { scanStatus: 'completed', diagnosisStatus: 'completed' }
   } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+}
+
+export async function markDiagnosisUnsupportedCrop(
+  userId: string,
+  scanId: string,
+  diagnosisId: string,
+  cropName: string,
+  model?: { name: string; version: string }
+): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`UPDATE scans SET status = 'completed' WHERE id = $1 AND user_id = $2`, [scanId, userId])
+    await client.query(
+      `UPDATE diagnoses SET predicted_crop = $1, predicted_disease = NULL, scientific_name = NULL, severity = NULL, confidence = NULL, model_name = $2, model_version = $3, symptoms = '[]'::jsonb, actions = '[]'::jsonb, prevention = '[]'::jsonb, status = 'completed', error_message = 'UNSUPPORTED_CROP' WHERE id = $4 AND user_id = $5`,
+      [cropName, model?.name ?? 'Plant disease classifier', model?.version ?? 'v1.0', diagnosisId, userId]
+    )
+    await client.query('COMMIT')
+    return { scanStatus: 'completed', diagnosisStatus: 'completed' }
+  } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+}
+
+export async function deleteScanForUser(userId: string, id: string): Promise<string | null> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const res = await client.query<{ storage_key: string }>(
+      'DELETE FROM scans WHERE id = $1 AND user_id = $2 RETURNING storage_key',
+      [id, userId]
+    )
+    await client.query('COMMIT')
+    return res.rows[0]?.storage_key ?? null
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function deleteDiagnosisForUser(userId: string, id: string): Promise<string | null> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const diag = await client.query<{ scan_id: string }>(
+      'SELECT scan_id FROM diagnoses WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    )
+    if (!diag.rows[0]) {
+      await client.query('ROLLBACK')
+      return null
+    }
+    const scanId = diag.rows[0].scan_id
+    const res = await client.query<{ storage_key: string }>(
+      'DELETE FROM scans WHERE id = $1 AND user_id = $2 RETURNING storage_key',
+      [scanId, userId]
+    )
+    await client.query('COMMIT')
+    return res.rows[0]?.storage_key ?? null
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function failScanDiagnosis(userId: string, scanId: string, diagnosisId: string): Promise<{ scanStatus: ScanStatus; diagnosisStatus: DiagnosisStatus }> {

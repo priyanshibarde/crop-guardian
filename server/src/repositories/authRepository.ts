@@ -45,6 +45,23 @@ export async function deleteSession(tokenHash: string): Promise<void> {
   await pool.query('DELETE FROM auth_sessions WHERE token_hash = $1', [tokenHash])
 }
 
+export async function deleteUserAccount(userId: string): Promise<string[]> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const scans = await client.query<{ storage_key: string }>('SELECT storage_key FROM scans WHERE user_id = $1', [userId])
+    const storageKeys = scans.rows.map((row) => row.storage_key).filter(Boolean)
+    await client.query('DELETE FROM users WHERE id = $1', [userId])
+    await client.query('COMMIT')
+    return storageKeys
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function withClient<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect()
   try { return await callback(client) } finally { client.release() }

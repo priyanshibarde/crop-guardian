@@ -167,7 +167,19 @@ class ModelService:
             prediction = self._provider.predict(image_path)
             if not prediction.class_name or not math.isfinite(prediction.confidence) or not 0 <= prediction.confidence <= 1:
                 return self._result("failed", error={"code": "INVALID_MODEL_OUTPUT", "message": "The model returned an invalid prediction."})
-            return self._result("completed", prediction={"class_name": prediction.class_name, "confidence": prediction.confidence}, inference_time_ms=round((time.perf_counter() - started) * 1000, 2))
+            candidates_list = [
+                {"class_name": c.class_name, "confidence": round(c.confidence, 4)}
+                for c in getattr(prediction, "candidates", [])
+            ]
+            return self._result(
+                "completed",
+                prediction={
+                    "class_name": prediction.class_name,
+                    "confidence": prediction.confidence,
+                    "candidates": candidates_list,
+                },
+                inference_time_ms=round((time.perf_counter() - started) * 1000, 2),
+            )
         except ProviderError as error:
             safe_messages = {"MODEL_LOAD_FAILED": "The configured inference model could not be loaded.", "INVALID_MODEL_OUTPUT": "The model returned an invalid prediction.", "INFERENCE_FAILED": "The image could not be analyzed."}
             return self._result("failed", error={"code": error.code, "message": safe_messages.get(error.code, "The image could not be analyzed.")})
