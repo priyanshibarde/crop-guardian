@@ -18,7 +18,7 @@ from model_service import model_service
 
 
 INFERENCE_HOST = os.getenv("INFERENCE_HOST", "0.0.0.0")
-INFERENCE_PORT = int(os.getenv("INFERENCE_PORT", "5001"))
+INFERENCE_PORT = int(os.getenv("PORT", "10000"))
 IMAGE_ROOT = Path(os.getenv("IMAGE_ROOT", str(Path(__file__).resolve().parent.parent / "uploads"))).resolve()
 
 
