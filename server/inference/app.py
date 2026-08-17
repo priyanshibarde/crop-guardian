@@ -17,7 +17,7 @@ if _INFERENCE_DIR not in sys.path:
 from model_service import model_service
 
 
-INFERENCE_HOST = "127.0.0.1"
+INFERENCE_HOST = os.getenv("INFERENCE_HOST", "0.0.0.0")
 INFERENCE_PORT = int(os.getenv("INFERENCE_PORT", "5001"))
 IMAGE_ROOT = Path(os.getenv("IMAGE_ROOT", str(Path(__file__).resolve().parent.parent / "uploads"))).resolve()
 
